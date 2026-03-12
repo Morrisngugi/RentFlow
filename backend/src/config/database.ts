@@ -1,0 +1,40 @@
+import { DataSource } from 'typeorm';
+import dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config();
+
+export const AppDataSource = new DataSource({
+  type: 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  username: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  database: process.env.DB_NAME || 'rentflow',
+  synchronize: process.env.NODE_ENV === 'development',
+  logging: process.env.NODE_ENV === 'development',
+  entities: [path.join(__dirname, '../entities/**/*.{ts,js}')],
+  migrations: [path.join(__dirname, '../migrations/**/*.{ts,js}')],
+  subscribers: [path.join(__dirname, '../subscribers/**/*.{ts,js}')],
+  ssl: process.env.DB_SSL === 'true' ? true : false
+});
+
+export async function initializeDatabase() {
+  try {
+    if (!AppDataSource.isInitialized) {
+      await AppDataSource.initialize();
+      console.log('✅ Database initialized successfully');
+    }
+    return AppDataSource;
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    throw error;
+  }
+}
+
+export function getDatabase() {
+  if (!AppDataSource.isInitialized) {
+    throw new Error('Database not initialized. Call initializeDatabase() first.');
+  }
+  return AppDataSource;
+}
