@@ -9,8 +9,10 @@
     "start": "node dist/server.js",
     "typeorm": "typeorm-cli",
     "migration:generate": "typeorm migration:generate",
-    "migration:run": "typeorm migration:run",
-    "migration:revert": "typeorm migration:revert"
+    "migration:run": "ts-node src/migrations-runner.ts",
+    "migration:revert": "typeorm migration:revert",
+    "db:migrate": "npm run migration:run",
+    "db:reset": "npm run migration:revert && npm run migration:run"
   },
   "keywords": [
     "rentflow",
