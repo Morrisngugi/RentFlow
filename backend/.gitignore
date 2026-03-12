@@ -3,10 +3,13 @@ node_modules/
 package-lock.json
 yarn.lock
 
-# Environment variables
+# Environment variables & Secrets
 .env
 .env.local
 .env.*.local
+.env.production
+.env.test
+.env.development
 
 # Build output
 dist/
@@ -31,6 +34,20 @@ yarn-error.log*
 # Database
 *.sqlite
 *.sqlite3
+*.db
+*.sql
+migrations/*.sql
+
+# Certificate & Key Files
+*.key
+*.pem
+*.crt
+*.cer
+*.p8
+*.p12
+*.jks
+*.keystore
+*.pfx
 
 # OS
 Thumbs.db
@@ -40,6 +57,17 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-# Runtime
+# Runtime & Temporary
 tmp/
 temp/
+.env.*.backup
+*.backup
+
+# Uploads (if applicable)
+uploads/
+tmp_uploads/
+
+# SSL/TLS Certificates
+certificates/
+certs/
+ssl/

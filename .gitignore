@@ -16,6 +16,15 @@ package-lock.json
 .env.production
 .env.test
 .env.development
+.env.*.backup
+*.env.backup
+
+# API Keys & Credentials
+.credentials
+credentials.json
+firebase-key.json
+google-credentials.json
+aws-credentials
 
 # ============================================
 # Build & Dist
