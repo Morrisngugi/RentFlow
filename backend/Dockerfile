@@ -1,6 +1,6 @@
-# Build stage - using official Node 20 LTS with Alpine 3.20 (stable security baseline)
-ARG BUILDKIT_INLINE_CACHE=1
-FROM node:20-alpine3.20 AS builder
+# ============= BUILD STAGE =============
+# Build from Chainguard's hardened Node image
+FROM cgr.dev/chainguard/node:latest-dev AS builder
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci && npm audit fix --force || true
+RUN npm ci --no-audit
 
 # Copy source code
 COPY . .
@@ -16,35 +16,32 @@ COPY . .
 # Build TypeScript
 RUN npm run build
 
-# Remove development dependencies
-RUN npm prune --production
-
-# Runtime stage - using official Node 20 LTS with Alpine 3.20 (stable security baseline)
-FROM node:20-alpine3.20 AS runtime
+# ============= PRODUCTION DEPENDENCIES =============
+FROM cgr.dev/chainguard/node:latest-dev AS prod-deps
 
 WORKDIR /app
 
-# Create nonroot user for security
-RUN addgroup -g 1001 nodejs && adduser -S nodejs -u 1001
+# Copy dependencies
+COPY package*.json ./
+RUN npm ci --omit=dev --no-audit
 
-# Copy package files from builder
-COPY --from=builder /app/package*.json ./
+# ============= RUNTIME IMAGE =============
+# Use distroless for zero vulnerabilities - nonroot user built-in
+FROM gcr.io/distroless/nodejs20-debian12:nonroot
 
-# Copy node_modules from builder
-COPY --from=builder /app/node_modules ./node_modules
+ENV NODE_ENV=production
 
-# Copy built application from builder
-COPY --from=builder /app/dist ./dist
+WORKDIR /app
 
-# Switch to nonroot user
-USER nodejs
+# Copy production dependencies
+COPY --from=prod-deps --chown=nonroot:nonroot /app/node_modules ./node_modules/
+COPY --from=prod-deps --chown=nonroot:nonroot /app/package*.json ./
 
-# Add health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3001/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})" || exit 1
-
-# Start application using exec form
-CMD ["node", "dist/server.js"]
+# Copy built application
+COPY --from=builder --chown=nonroot:nonroot /app/dist ./dist/
 
 # Expose port
 EXPOSE 3001
+
+# Start application
+CMD ["dist/server.js"]

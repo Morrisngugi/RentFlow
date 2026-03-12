@@ -1,6 +1,6 @@
-# Build stage - using official Node 20 LTS with Alpine 3.20 (stable security baseline)
-ARG BUILDKIT_INLINE_CACHE=1
-FROM node:20-alpine3.20 AS builder
+# ============= BUILD STAGE =============
+# Build from Chainguard's hardened Node image
+FROM cgr.dev/chainguard/node:latest-dev AS builder
 
 WORKDIR /app
 
@@ -8,47 +8,47 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci && npm audit fix --force || true
+RUN npm ci --no-audit --ignore-scripts --legacy-peer-deps && \
+    npm cache clean --force
 
 # Copy source code
 COPY . .
 
-# Build Next.js application
-RUN npm run build
+# Build Next.js application with NODE_ENV=production for optimized build
+RUN NODE_ENV=production npm run build
 
-# Remove development dependencies
-RUN npm prune --production
-
-# Runtime stage - using official Node 20 LTS with Alpine 3.20 (stable security baseline)
-FROM node:20-alpine3.20 AS runtime
+# ============= PRODUCTION DEPENDENCIES =============
+FROM cgr.dev/chainguard/node:latest-dev AS prod-deps
 
 WORKDIR /app
 
-# Create nonroot user for security
-RUN addgroup -g 1001 nodejs && adduser -S nodejs -u 1001
+# Copy package files
+COPY package*.json ./
 
-# Copy package files from builder
-COPY --from=builder /app/package*.json ./
+# Install production dependencies only
+RUN npm ci --omit=dev --no-audit
 
-# Copy node_modules from builder
-COPY --from=builder /app/node_modules ./node_modules
+# ============= RUNTIME IMAGE =============
+# Use distroless for zero vulnerabilities - nonroot user built-in
+FROM gcr.io/distroless/nodejs20-debian12:nonroot
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV HOSTNAME="0.0.0.0"
+ENV PORT=3000
+
+# Copy production dependencies
+COPY --from=prod-deps --chown=nonroot:nonroot /app/node_modules ./node_modules/
+COPY --from=prod-deps --chown=nonroot:nonroot /app/package*.json ./
 
 # Copy built Next.js application from builder
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-
-# Set Node environment to production
-ENV NODE_ENV=production
-
-# Switch to nonroot user
-USER nodejs
-
-# Add health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})" || exit 1
-
-# Start Next.js application using exec form
-CMD ["node", "node_modules/.next/standalone/server.js"]
+COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone /app/
+COPY --from=builder --chown=nonroot:nonroot /app/.next/static /app/.next/static
+COPY --from=builder --chown=nonroot:nonroot /app/public /app/public
 
 # Expose port
 EXPOSE 3000
+
+# Start Next.js server
+CMD ["server.js"]
