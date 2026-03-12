@@ -8,6 +8,7 @@ dotenv.config();
 // Import middleware and routes
 import errorHandler from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
+import authRoutes from './routes/auth';
 
 const app: Express = express();
 
@@ -41,10 +42,13 @@ app.get('/api/v1', (req: Request, res: Response) => {
   });
 });
 
-// Routes placeholder - Add your routes here
-// app.use('/api/v1/auth', authRoutes);
+// API Routes
+app.use('/api/v1/auth', authRoutes);
+
+// Future routes
 // app.use('/api/v1/properties', propertyRoutes);
-// app.use('/api/v1/users', userRoutes);
+// app.use('/api/v1/leases', leaseRoutes);
+// app.use('/api/v1/payments', paymentRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
