@@ -15,32 +15,24 @@ COPY . .
 # Build TypeScript
 RUN npm run build
 
-# Runtime stage
-FROM node:20-alpine
+# Runtime stage - using distroless for minimal attack surface
+FROM gcr.io/distroless/nodejs20-debian12
 
 WORKDIR /app
-
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
 
 # Copy package files from builder
 COPY --from=builder /app/package*.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production
+# Copy node_modules from builder
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
-
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["dumb-init", "--"]
+# Non-root user already built into distroless image
 
 # Start application
-CMD ["node", "dist/server.js"]
+CMD ["dist/server.js"]
 
 # Expose port
 EXPOSE 3001
