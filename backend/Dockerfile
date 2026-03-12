@@ -1,7 +1,12 @@
-# Build stage
-FROM node:20-alpine AS builder
+# Build stage - using bookworm with security updates
+FROM node:20-bookworm AS builder
 
 WORKDIR /app
+
+# Update and patch all system packages for security
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get clean
 
 # Copy package files
 COPY package*.json ./
