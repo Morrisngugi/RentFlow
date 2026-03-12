@@ -1,0 +1,40 @@
+# Frontend Next.js Development Dockerfile
+# Uses Chainguard image for zero CVEs and minimal attack surface
+FROM cgr.dev/chainguard/node:latest-dev
+
+WORKDIR /app
+
+# Accept build argument for API URL
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
+# Copy package files with proper ownership
+COPY --chown=node:node package*.json ./
+
+# Install all dependencies including dev dependencies
+RUN npm install --legacy-peer-deps
+
+# Copy configuration files with proper ownership
+COPY --chown=node:node next.config.js ./
+COPY --chown=node:node tsconfig.json ./
+COPY --chown=node:node postcss.config.mjs ./
+COPY --chown=node:node tailwind.config.ts ./
+
+# Copy source files with proper ownership
+COPY --chown=node:node src ./src
+COPY --chown=node:node public ./public
+
+# Create .next directory for build output
+RUN mkdir -p .next
+
+# Expose the port
+EXPOSE 3000
+
+# Start development server with proper npm path
+# CMD ["/usr/bin/npm", "run", "dev"]
+
+# Expose the port
+EXPOSE 3000
+
+# Start development server with proper npm path
+CMD ["/usr/bin/npm", "run", "dev"]

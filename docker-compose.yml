@@ -1,12 +1,11 @@
-version: '3.8'
-
 services:
   postgres:
-    image: postgres:15-bookworm
+    image: postgres:15-alpine3.23
     container_name: rentflow-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: rentflow_user
-      POSTGRES_PASSWORD: rentflow_password_change_me
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-rentflow_password_change_me}
       POSTGRES_DB: rentflow_db
     ports:
       - "5432:5432"
@@ -17,6 +16,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - rentflow-network
 
@@ -25,16 +37,17 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: rentflow-backend
+    restart: unless-stopped
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3001
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: rentflow_user
-      DB_PASSWORD: rentflow_password_change_me
+      DB_PASSWORD: ${DB_PASSWORD:-rentflow_password_change_me}
       DB_NAME: rentflow_db
-      JWT_SECRET: dev-secret-key-change-in-production
-      CORS_ORIGIN: http://localhost:3000
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     ports:
       - "3001:3001"
     depends_on:
@@ -44,6 +57,19 @@ services:
       - ./backend:/app
       - /app/node_modules
     command: npm run dev
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - rentflow-network
 
@@ -52,9 +78,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: rentflow-frontend
+    restart: unless-stopped
     environment:
-      NODE_ENV: development
-      NEXT_PUBLIC_API_URL: http://backend:3001/api/v1
+      NODE_ENV: ${NODE_ENV:-development}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:3001/api/v1}
     ports:
       - "3000:3000"
     depends_on:
@@ -64,6 +91,19 @@ services:
       - /app/node_modules
       - /app/.next
     command: npm run dev
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - rentflow-network
 
