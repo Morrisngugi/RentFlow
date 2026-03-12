@@ -1,12 +1,7 @@
-# Build stage - using bookworm with security updates
-FROM node:20-bookworm AS builder
+# Build stage - using Chainguard hardened builder (zero vulnerabilities)
+FROM cgr.io/chainguard/node:20 AS builder
 
 WORKDIR /app
-
-# Update and patch all system packages for security
-RUN apt-get update && apt-get upgrade -y --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/* && \
-    apt-get clean
 
 # Copy package files
 COPY package*.json ./
@@ -20,8 +15,8 @@ COPY . .
 # Build TypeScript
 RUN npm run build
 
-# Runtime stage - using distroless for minimal attack surface
-FROM gcr.io/distroless/nodejs20-debian12
+# Runtime stage - using distroless with :nonroot for minimal attack surface
+FROM gcr.io/distroless/nodejs20-debian12:nonroot
 
 WORKDIR /app
 
