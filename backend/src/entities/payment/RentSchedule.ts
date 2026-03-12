@@ -9,22 +9,21 @@ import { Lease } from '../lease/Lease';
 
 @Entity('rent_schedules')
 export class RentSchedule {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  leaseId: string;
+  leaseId!: string;
 
   @Column({ type: 'int' })
-  rentDueDay: number;
+  rentDueDay!: number;
 
   @Column({ type: 'date' })
-  dueDate: Date;
+  dueDate!: Date;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn() createdAt!: Date;
 
   // Relation
   @ManyToOne(() => Lease)
-  lease: Lease;
+  lease!: Lease;
 }
+

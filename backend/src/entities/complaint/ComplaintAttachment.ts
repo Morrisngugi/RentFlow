@@ -9,25 +9,24 @@ import { Complaint } from './Complaint';
 
 @Entity('complaint_attachments')
 export class ComplaintAttachment {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  complaintId: string;
+  complaintId!: string;
 
   @Column({ type: 'varchar' })
-  fileUrl: string;
+  fileUrl!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  fileName: string;
+  fileName!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  fileType: string;
+  fileType!: string;
 
-  @CreateDateColumn()
-  uploadedAt: Date;
+  @CreateDateColumn() uploadedAt!: Date;
 
   // Relation
   @ManyToOne(() => Complaint, (complaint) => complaint.attachments)
-  complaint: Complaint;
+  complaint!: Complaint;
 }
+

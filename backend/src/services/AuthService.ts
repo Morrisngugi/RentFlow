@@ -44,17 +44,11 @@ export class AuthService {
    * Generate JWT token
    */
   generateToken(userId: string, email: string): string {
-    return jwt.sign(
-      {
-        userId,
-        email,
-      },
-      env.JWT_SECRET,
-      {
-        expiresIn: env.JWT_EXPIRY,
-        algorithm: 'HS256',
-      }
-    );
+    const payload = { userId, email };
+    return jwt.sign(payload, env.JWT_SECRET, {
+      expiresIn: env.JWT_EXPIRY,
+      algorithm: 'HS256',
+    } as any) as string;
   }
 
   /**

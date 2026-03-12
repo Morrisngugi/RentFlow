@@ -9,43 +9,42 @@ import { User } from '../User';
 
 @Entity('notifications')
 export class Notification {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  userId: string;
+  userId!: string;
 
   @Column({ type: 'varchar' })
-  title: string;
+  title!: string;
 
   @Column({ type: 'text' })
-  message: string;
+  message!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  notificationType: string;
+  notificationType!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  relatedEntityType: string;
+  relatedEntityType!: string;
 
   @Column({ type: 'uuid', nullable: true })
-  relatedEntityId: string;
+  relatedEntityId!: string;
 
   @Column({ type: 'boolean', default: false })
-  isRead: boolean;
+  isRead!: boolean;
 
   @Column({ type: 'timestamp', nullable: true })
-  readAt: Date;
+  readAt!: Date;
 
   @Column({ type: 'boolean', default: false })
-  smsSent: boolean;
+  smsSent!: boolean;
 
   @Column({ type: 'boolean', default: false })
-  emailSent: boolean;
+  emailSent!: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn() createdAt!: Date;
 
   // Relation
   @ManyToOne(() => User, (user) => user.notifications)
-  user: User;
+  user!: User;
 }
+

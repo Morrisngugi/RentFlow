@@ -10,38 +10,37 @@ import { Lease } from '../lease/Lease';
 
 @Entity('late_fees')
 export class LateFee {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  paymentId: string;
+  paymentId!: string;
 
   @Column({ type: 'uuid' })
-  leaseId: string;
+  leaseId!: string;
 
   @Column({ type: 'int' })
-  daysOverdue: number;
+  daysOverdue!: number;
 
   @Column({ type: 'numeric' })
-  feeAmount: number;
+  feeAmount!: number;
 
   @Column({ type: 'numeric', nullable: true })
-  feePercentage: number;
+  feePercentage!: number;
 
   @Column({
     type: 'enum',
     enum: ['pending', 'paid', 'waived'],
     default: 'pending',
   })
-  status: string;
+  status!: string;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn() createdAt!: Date;
 
   // Relations
   @ManyToOne(() => Payment, (payment) => payment.lateFees)
-  payment: Payment;
+  payment!: Payment;
 
   @ManyToOne(() => Lease)
-  lease: Lease;
+  lease!: Lease;
 }
+

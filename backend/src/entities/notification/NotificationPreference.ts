@@ -11,50 +11,48 @@ import { User } from '../User';
 
 @Entity('notification_preferences')
 export class NotificationPreference {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  userId: string;
+  userId!: string;
 
   @Column({ type: 'boolean', default: true })
-  emailEnabled: boolean;
+  emailEnabled!: boolean;
 
   @Column({ type: 'boolean', default: true })
-  smsEnabled: boolean;
+  smsEnabled!: boolean;
 
   @Column({ type: 'boolean', default: true })
-  inAppEnabled: boolean;
+  inAppEnabled!: boolean;
 
   @Column({ type: 'boolean', default: true })
-  notifyRentDue: boolean;
+  notifyRentDue!: boolean;
 
   @Column({ type: 'boolean', default: true })
-  notifyLatePayment: boolean;
+  notifyLatePayment!: boolean;
 
   @Column({ type: 'boolean', default: true })
-  notifyLeaseExpiry: boolean;
+  notifyLeaseExpiry!: boolean;
 
   @Column({ type: 'boolean', default: true })
-  notifyComplaints: boolean;
+  notifyComplaints!: boolean;
 
   @Column({ type: 'boolean', default: true })
-  notifyPaymentReceived: boolean;
+  notifyPaymentReceived!: boolean;
 
   @Column({ type: 'varchar', nullable: true })
-  preferredPhone: string;
+  preferredPhone!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  preferredEmail: string;
+  preferredEmail!: string;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn() createdAt!: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @UpdateDateColumn() updatedAt!: Date;
 
   // Relation
   @OneToOne(() => User)
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user!: User;
 }
+

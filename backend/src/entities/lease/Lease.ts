@@ -15,74 +15,72 @@ import { LeaseRenewal } from './LeaseRenewal';
 
 @Entity('leases')
 export class Lease {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  propertyId: string;
+  propertyId!: string;
 
   @Column({ type: 'uuid' })
-  tenantId: string;
+  tenantId!: string;
 
   @Column({ type: 'uuid' })
-  landlordId: string;
+  landlordId!: string;
 
   @Column({ type: 'uuid' })
-  leaseTermId: string;
+  leaseTermId!: string;
 
   @Column({ type: 'numeric' })
-  monthlyRent: number;
+  monthlyRent!: number;
 
   @Column({ type: 'numeric', default: 0 })
-  garbageAmount: number;
+  garbageAmount!: number;
 
   @Column({ type: 'numeric', default: 0 })
-  waterUnitCost: number;
+  waterUnitCost!: number;
 
   @Column({ type: 'numeric', default: 0 })
-  securityDeposit: number;
+  securityDeposit!: number;
 
   @Column({ type: 'boolean', default: false })
-  depositPaid: boolean;
+  depositPaid!: boolean;
 
   @Column({ type: 'date', nullable: true })
-  depositPaidDate: Date;
+  depositPaidDate!: Date;
 
   @Column({ type: 'date' })
-  startDate: Date;
+  startDate!: Date;
 
   @Column({ type: 'date' })
-  endDate: Date;
+  endDate!: Date;
 
   @Column({
     type: 'enum',
     enum: ['draft', 'active', 'expired', 'terminated'],
     default: 'active',
   })
-  status: string;
+  status!: string;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn() createdAt!: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @UpdateDateColumn() updatedAt!: Date;
 
   // Relations
   @ManyToOne(() => Property, (property) => property.leases)
-  property: Property;
+  property!: Property;
 
   @ManyToOne(() => User)
-  tenant: User;
+  tenant!: User;
 
   @ManyToOne(() => User)
-  landlord: User;
+  landlord!: User;
 
   @ManyToOne(() => LeaseTerm)
-  leaseTerm: LeaseTerm;
+  leaseTerm!: LeaseTerm;
 
   @OneToMany(() => Payment, (payment) => payment.lease)
-  payments: Payment[];
+  payments!: Payment[];
 
   @OneToMany(() => LeaseRenewal, (renewal) => renewal.lease)
-  renewals: LeaseRenewal[];
+  renewals!: LeaseRenewal[];
 }
+

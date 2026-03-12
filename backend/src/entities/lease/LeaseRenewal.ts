@@ -9,25 +9,24 @@ import { Lease } from './Lease';
 
 @Entity('lease_renewals')
 export class LeaseRenewal {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  leaseId: string;
+  leaseId!: string;
 
   @Column({ type: 'date' })
-  oldEndDate: Date;
+  oldEndDate!: Date;
 
   @Column({ type: 'date' })
-  newEndDate: Date;
+  newEndDate!: Date;
 
   @Column({ type: 'numeric', nullable: true })
-  newMonthlyRent: number;
+  newMonthlyRent!: number;
 
-  @CreateDateColumn()
-  renewalDate: Date;
+  @CreateDateColumn() renewalDate!: Date;
 
   // Relation
   @ManyToOne(() => Lease, (lease) => lease.renewals)
-  lease: Lease;
+  lease!: Lease;
 }
+

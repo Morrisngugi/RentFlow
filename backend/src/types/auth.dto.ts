@@ -2,46 +2,46 @@ import { IsEmail, IsString, MinLength, IsNotEmpty } from 'class-validator';
 
 export class RegisterRequest {
   @IsEmail({}, { message: 'Email must be a valid email address' })
-  email: string;
+  email!: string;
 
   @IsString({ message: 'First name must be a string' })
   @IsNotEmpty({ message: 'First name is required' })
-  firstName: string;
+  firstName!: string;
 
   @IsString({ message: 'Last name must be a string' })
   @IsNotEmpty({ message: 'Last name is required' })
-  lastName: string;
+  lastName!: string;
 
   @IsString({ message: 'Phone number must be a string' })
   @IsNotEmpty({ message: 'Phone number is required' })
-  phoneNumber: string;
+  phoneNumber!: string;
 
   @IsString({ message: 'ID number must be a string' })
   @IsNotEmpty({ message: 'ID number is required' })
-  idNumber: string;
+  idNumber!: string;
 
   @IsString({ message: 'Password must be a string' })
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
-  password: string;
+  password!: string;
 }
 
 export class LoginRequest {
   @IsEmail({}, { message: 'Email must be a valid email address' })
-  email: string;
+  email!: string;
 
   @IsString({ message: 'Password must be a string' })
   @IsNotEmpty({ message: 'Password is required' })
-  password: string;
+  password!: string;
 }
 
 export class ChangePasswordRequest {
   @IsString({ message: 'Old password must be a string' })
   @IsNotEmpty({ message: 'Old password is required' })
-  oldPassword: string;
+  oldPassword!: string;
 
   @IsString({ message: 'New password must be a string' })
   @MinLength(8, { message: 'New password must be at least 8 characters long' })
-  newPassword: string;
+  newPassword!: string;
 }
 
 export class UpdateProfileRequest {

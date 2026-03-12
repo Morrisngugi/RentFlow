@@ -11,50 +11,48 @@ import { User } from '../User';
 
 @Entity('deposits')
 export class Deposit {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  leaseId: string;
+  leaseId!: string;
 
   @Column({ type: 'uuid' })
-  tenantId: string;
+  tenantId!: string;
 
   @Column({ type: 'uuid' })
-  landlordId: string;
+  landlordId!: string;
 
   @Column({ type: 'numeric' })
-  amount: number;
+  amount!: number;
 
   @Column({
     type: 'enum',
     enum: ['pending', 'held', 'released', 'forfeited'],
     default: 'pending',
   })
-  status: string;
+  status!: string;
 
   @Column({ type: 'date', nullable: true })
-  collectedDate: Date;
+  collectedDate!: Date;
 
   @Column({ type: 'date', nullable: true })
-  releasedDate: Date;
+  releasedDate!: Date;
 
   @Column({ type: 'text', nullable: true })
-  notes: string;
+  notes!: string;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn() createdAt!: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @UpdateDateColumn() updatedAt!: Date;
 
   // Relations
   @ManyToOne(() => Lease)
-  lease: Lease;
+  lease!: Lease;
 
   @ManyToOne(() => User)
-  tenant: User;
+  tenant!: User;
 
   @ManyToOne(() => User)
-  landlord: User;
+  landlord!: User;
 }
+

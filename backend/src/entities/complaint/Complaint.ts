@@ -13,62 +13,60 @@ import { ComplaintAttachment } from './ComplaintAttachment';
 
 @Entity('complaints')
 export class Complaint {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  leaseId: string;
+  leaseId!: string;
 
   @Column({ type: 'uuid' })
-  tenantId: string;
+  tenantId!: string;
 
   @Column({ type: 'uuid' })
-  landlordId: string;
+  landlordId!: string;
 
   @Column({ type: 'varchar' })
-  title: string;
+  title!: string;
 
   @Column({ type: 'text' })
-  description: string;
+  description!: string;
 
   @Column({
     type: 'enum',
     enum: ['maintenance', 'billing', 'safety', 'noise', 'other'],
     nullable: true,
   })
-  complaintType: string;
+  complaintType!: string;
 
   @Column({
     type: 'enum',
     enum: ['open', 'in_progress', 'resolved', 'closed'],
     default: 'open',
   })
-  status: string;
+  status!: string;
 
   @Column({ type: 'simple-array', nullable: true })
-  attachmentUrls: string[];
+  attachmentUrls!: string[];
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn() createdAt!: Date;
 
   @Column({ type: 'timestamp', nullable: true })
-  resolvedAt: Date;
+  resolvedAt!: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @UpdateDateColumn() updatedAt!: Date;
 
   // Relations
   @ManyToOne(() => Lease)
-  lease: Lease;
+  lease!: Lease;
 
   @ManyToOne(() => User)
-  tenant: User;
+  tenant!: User;
 
   @ManyToOne(() => User)
-  landlord: User;
+  landlord!: User;
 
   @OneToMany(() => ComplaintAttachment, (attachment) => attachment.complaint, {
     cascade: true,
   })
-  attachments: ComplaintAttachment[];
+  attachments!: ComplaintAttachment[];
 }
+

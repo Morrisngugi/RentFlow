@@ -11,22 +11,21 @@ import { User } from './User';
 @Entity('agent_landlord_assignments')
 @Unique(['agentId', 'landlordId'])
 export class AgentLandlordAssignment {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  agentId: string;
+  agentId!: string;
 
   @Column({ type: 'uuid' })
-  landlordId: string;
+  landlordId!: string;
 
-  @CreateDateColumn()
-  assignedAt: Date;
+  @CreateDateColumn() assignedAt!: Date;
 
   // Relations
   @ManyToOne(() => User)
-  agent: User;
+  agent!: User;
 
   @ManyToOne(() => User)
-  landlord: User;
+  landlord!: User;
 }
+

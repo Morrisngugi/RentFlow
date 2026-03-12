@@ -13,32 +13,30 @@ import { AgentLandlordAssignment } from '../AgentLandlordAssignment';
 
 @Entity('agent_profiles')
 export class AgentProfile {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  userId: string;
+  userId!: string;
 
   @Column({ type: 'varchar' })
-  officeName: string;
+  officeName!: string;
 
   @Column({ type: 'varchar' })
-  officeLocation: string;
+  officeLocation!: string;
 
   @Column({ type: 'boolean', default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn() createdAt!: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @UpdateDateColumn() updatedAt!: Date;
 
   // Relations
   @OneToOne(() => User, (user) => user.agentProfile)
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user!: User;
 
   @OneToMany(() => AgentLandlordAssignment, (assignment) => assignment.agent)
-  landlordAssignments: AgentLandlordAssignment[];
+  landlordAssignments!: AgentLandlordAssignment[];
 }
+

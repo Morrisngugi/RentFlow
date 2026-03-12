@@ -14,47 +14,45 @@ import { AgentLandlordAssignment } from '../AgentLandlordAssignment';
 
 @Entity('landlord_profiles')
 export class LandlordProfile {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  userId: string;
+  userId!: string;
 
   @Column({ type: 'text' })
-  physicalAddress: string;
+  physicalAddress!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  bankName: string;
+  bankName!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  bankAccountNumber: string;
+  bankAccountNumber!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  bankAccountHolder: string;
+  bankAccountHolder!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  companyName: string;
+  companyName!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  taxId: string;
+  taxId!: string;
 
   @Column({ type: 'numeric', default: 5.0 })
-  defaultLateFeePercentage: number;
+  defaultLateFeePercentage!: number;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn() createdAt!: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @UpdateDateColumn() updatedAt!: Date;
 
   // Relations
   @OneToOne(() => User, (user) => user.landlordProfile)
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user!: User;
 
   @OneToMany(() => Property, (property) => property.landlord)
-  properties: Property[];
+  properties!: Property[];
 
   @OneToMany(() => AgentLandlordAssignment, (assignment) => assignment.landlord)
-  agentAssignments: AgentLandlordAssignment[];
+  agentAssignments!: AgentLandlordAssignment[];
 }
+

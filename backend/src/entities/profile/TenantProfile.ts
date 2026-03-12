@@ -11,48 +11,46 @@ import { User } from '../User';
 
 @Entity('tenant_profiles')
 export class TenantProfile {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'uuid' })
-  userId: string;
+  userId!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  nationality: string;
+  nationality!: string;
 
   @Column({
     type: 'enum',
     enum: ['single', 'married', 'divorced', 'widowed'],
     nullable: true,
   })
-  maritalStatus: string;
+  maritalStatus!: string;
 
   @Column({ type: 'int', default: 0 })
-  numberOfChildren: number;
+  numberOfChildren!: number;
 
   @Column({ type: 'varchar', nullable: true })
-  occupation: string;
+  occupation!: string;
 
   @Column({ type: 'text', nullable: true })
-  postalAddress: string;
+  postalAddress!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  nextOfKinName: string;
+  nextOfKinName!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  nextOfKinPhone: string;
+  nextOfKinPhone!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  nextOfKinRelationship: string;
+  nextOfKinRelationship!: string;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn() createdAt!: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @UpdateDateColumn() updatedAt!: Date;
 
   // Relation
   @OneToOne(() => User, (user) => user.tenantProfile)
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user!: User;
 }
+

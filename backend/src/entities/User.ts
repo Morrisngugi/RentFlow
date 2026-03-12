@@ -14,58 +14,56 @@ import { Notification } from './notification/Notification';
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid') id!: string;
 
   @Column({ type: 'varchar', unique: true, nullable: true })
-  email: string;
+  email!: string;
 
   @Column({ type: 'varchar' })
-  phoneNumber: string;
+  phoneNumber!: string;
 
   @Column({ type: 'varchar' })
-  firstName: string;
+  firstName!: string;
 
   @Column({ type: 'varchar' })
-  lastName: string;
+  lastName!: string;
 
   @Column({ type: 'varchar' })
-  idNumber: string;
+  idNumber!: string;
 
   @Column({ type: 'varchar', nullable: true })
-  profilePictureUrl: string;
+  profilePictureUrl!: string;
 
   @Column({ type: 'varchar', select: false })
-  passwordHash: string;
+  passwordHash!: string;
 
   @Column({ type: 'boolean', default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @CreateDateColumn() createdAt!: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @UpdateDateColumn() updatedAt!: Date;
 
   // Relations
   @OneToOne(() => TenantProfile, (profile) => profile.user, {
     nullable: true,
     cascade: true,
   })
-  tenantProfile: TenantProfile;
+  tenantProfile!: TenantProfile;
 
   @OneToOne(() => AgentProfile, (profile) => profile.user, {
     nullable: true,
     cascade: true,
   })
-  agentProfile: AgentProfile;
+  agentProfile!: AgentProfile;
 
   @OneToOne(() => LandlordProfile, (profile) => profile.user, {
     nullable: true,
     cascade: true,
   })
-  landlordProfile: LandlordProfile;
+  landlordProfile!: LandlordProfile;
 
   @OneToMany(() => Notification, (notification) => notification.user)
-  notifications: Notification[];
+  notifications!: Notification[];
 }
+
