@@ -8,7 +8,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --no-audit --ignore-scripts --legacy-peer-deps && \
+USER root
+RUN npm install --no-audit --ignore-scripts --legacy-peer-deps && \
     npm cache clean --force
 
 # Copy source code
@@ -24,9 +25,10 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-
+# Remove lock file to avoid permission issues with non-root user
+RUN rm -f package-lock.json npm-shrinkwrap.json
 # Install production dependencies only
-RUN npm ci --omit=dev --no-audit
+RUN npm install --omit=dev --no-audit
 
 # ============= RUNTIME IMAGE =============
 # Use distroless for zero vulnerabilities - nonroot user built-in

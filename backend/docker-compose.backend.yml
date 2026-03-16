@@ -1,10 +1,15 @@
+# Backend Docker Compose for RentFlow
 version: '3.8'
 
 services:
   postgres:
     image: postgres:15-alpine3.23
     container_name: rentflow-postgres
-    # Removed volumes and command for production
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rentflow_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-rentflow_password_change_me}
+      POSTGRES_DB: rentflow_db
     ports:
       - "5432:5432"
     volumes:
@@ -14,30 +19,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     networks:
       - rentflow-network
 
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.backend
     container_name: rentflow-backend
     restart: unless-stopped
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      NODE_ENV: production
       PORT: 3001
       DB_HOST: postgres
       DB_PORT: 5432
@@ -51,20 +43,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    # No bind mounts or override command for production container
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '1'
-          memory: 1G
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     networks:
       - rentflow-network
 
