@@ -1,5 +1,4 @@
 # ============= BUILD STAGE =============
-# Build from Chainguard's hardened Node image
 FROM cgr.dev/chainguard/node:latest-dev AS builder
 
 WORKDIR /app
@@ -7,31 +6,18 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install all dependencies (including devDependencies for build)
 USER root
-RUN npm install --no-audit --ignore-scripts --legacy-peer-deps && \
+RUN npm ci --legacy-peer-deps && \
     npm cache clean --force
 
 # Copy source code
 COPY . .
 
-# Build Next.js application with NODE_ENV=production for optimized build
-RUN NODE_ENV=production npm run build
-
-# ============= PRODUCTION DEPENDENCIES =============
-FROM cgr.dev/chainguard/node:latest-dev AS prod-deps
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-# Remove lock file to avoid permission issues with non-root user
-RUN rm -f package-lock.json npm-shrinkwrap.json
-# Install production dependencies only
-RUN npm install --omit=dev --no-audit
+# Build Next.js application
+RUN npm run build
 
 # ============= RUNTIME IMAGE =============
-# Use distroless for zero vulnerabilities - nonroot user built-in
 FROM gcr.io/distroless/nodejs20-debian12:nonroot
 
 WORKDIR /app
@@ -40,12 +26,8 @@ ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
 
-# Copy production dependencies
-COPY --from=prod-deps --chown=nonroot:nonroot /app/node_modules ./node_modules/
-COPY --from=prod-deps --chown=nonroot:nonroot /app/package*.json ./
-
-# Copy built Next.js application from builder
-COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone /app/
+# Copy built Next.js application (standalone mode)
+COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone /app
 COPY --from=builder --chown=nonroot:nonroot /app/.next/static /app/.next/static
 COPY --from=builder --chown=nonroot:nonroot /app/public /app/public
 
@@ -53,4 +35,4 @@ COPY --from=builder --chown=nonroot:nonroot /app/public /app/public
 EXPOSE 3000
 
 # Start Next.js server
-CMD ["server.js"]
+CMD ["/app/server.js"]

@@ -25,9 +25,9 @@
       ]
     },
     "types": [
-      "node",
       "react",
-      "react-dom"
+      "react-dom",
+      "node"
     ],
     "allowJs": true,
     "plugins": [
