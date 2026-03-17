@@ -21,6 +21,7 @@ async function seedAdmin() {
     lastName: 'Admin',
     idNumber: 'ADMIN-0001',
     passwordHash,
+    role: 'admin',
     isActive: true
   });
   await userRepo.save(admin);

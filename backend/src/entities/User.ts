@@ -37,6 +37,13 @@ export class User {
   @Column({ type: 'varchar', select: false })
   passwordHash!: string;
 
+  @Column({ 
+    type: 'enum', 
+    enum: ['admin', 'agent', 'landlord', 'tenant'],
+    default: 'tenant'
+  })
+  role!: 'admin' | 'agent' | 'landlord' | 'tenant';
+
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 

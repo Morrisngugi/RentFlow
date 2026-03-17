@@ -28,8 +28,8 @@ RUN rm -f package-lock.json npm-shrinkwrap.json
 RUN npm install --omit=dev --no-audit
 
 # ============= RUNTIME IMAGE =============
-# Use distroless for zero vulnerabilities - nonroot user built-in
-FROM gcr.io/distroless/nodejs20-debian12:nonroot
+# Use Chainguard Node for a secure runtime with node available
+FROM cgr.dev/chainguard/node:latest
 
 ENV NODE_ENV=production
 

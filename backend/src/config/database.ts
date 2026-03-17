@@ -63,6 +63,19 @@ export async function initializeDatabase() {
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
       console.log('✅ Database initialized successfully');
+      
+      // Run pending migrations in production
+      if (process.env.NODE_ENV === 'production') {
+        try {
+          console.log('🔄 Running pending migrations...');
+          const migrations = await AppDataSource.runMigrations();
+          if (migrations.length > 0) {
+            console.log(`✅ Successfully ran ${migrations.length} migration(s)!`);
+          }
+        } catch (migrationError) {
+          console.warn('⚠️  Migration execution warning (might already be applied):', migrationError);
+        }
+      }
     }
     return AppDataSource;
   } catch (error) {
