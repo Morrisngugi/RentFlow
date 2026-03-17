@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --rentflow-navy: #141A46;
+  --rentflow-teal: #00203F;
+  --rentflow-gold: #EEAA23;
+  --background: #ffffff;
+  --foreground: #1f2937;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -20,4 +28,10 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
 }

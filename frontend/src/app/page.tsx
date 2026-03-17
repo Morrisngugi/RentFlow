@@ -17,10 +17,13 @@ export default function Home() {
   }, [router]);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-gradient-to-b from-blue-50 to-white">
+    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-gradient-to-b from-rentflow-navy/5 to-white">
       <div className="text-center">
-        <h1 className="text-5xl font-bold text-gray-900 mb-4">
-          🏠 RentFlow
+        <div className="mb-8">
+          <img src="/logo.png" alt="RentFlow Logo" className="w-32 h-32 mx-auto" />
+        </div>
+        <h1 className="text-5xl font-bold text-rentflow-navy mb-4">
+          RentFlow
         </h1>
         <p className="text-xl text-gray-600 mb-4">
           Property Rental Management System
@@ -30,18 +33,18 @@ export default function Home() {
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12 mb-12">
-          <div className="p-6 bg-white rounded-lg shadow-md border border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-800 mb-2">🔐 Authentication</h2>
+          <div className="p-6 bg-white rounded-lg shadow-md border-l-4 border-rentflow-navy">
+            <h2 className="text-lg font-semibold text-rentflow-navy mb-2">🔐 Authentication</h2>
             <p className="text-gray-600">Secure login and registration</p>
           </div>
           
-          <div className="p-6 bg-white rounded-lg shadow-md border border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-800 mb-2">📋 Properties</h2>
+          <div className="p-6 bg-white rounded-lg shadow-md border-l-4 border-rentflow-gold">
+            <h2 className="text-lg font-semibold text-rentflow-navy mb-2">📋 Properties</h2>
             <p className="text-gray-600">Manage your rental properties</p>
           </div>
           
-          <div className="p-6 bg-white rounded-lg shadow-md border border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-800 mb-2">💰 Payments</h2>
+          <div className="p-6 bg-white rounded-lg shadow-md border-l-4 border-rentflow-teal">
+            <h2 className="text-lg font-semibold text-rentflow-navy mb-2">💰 Payments</h2>
             <p className="text-gray-600">Track rental payments</p>
           </div>
         </div>
@@ -49,13 +52,13 @@ export default function Home() {
         <div className="flex gap-4 justify-center mb-12">
           <Link 
             href="/login" 
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition"
+            className="bg-rentflow-navy hover:bg-rentflow-teal text-white font-semibold py-3 px-8 rounded-lg transition"
           >
             Log In
           </Link>
           <Link 
             href="/register" 
-            className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-8 rounded-lg transition"
+            className="bg-rentflow-gold hover:bg-rentflow-navy text-white font-semibold py-3 px-8 rounded-lg transition"
           >
             Sign Up
           </Link>
