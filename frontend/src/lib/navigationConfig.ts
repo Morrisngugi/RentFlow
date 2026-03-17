@@ -62,5 +62,5 @@ export function getDashboardTitleForRole(role: UserRole | undefined): string {
 export function getDefaultDashboardRoute(role: UserRole | undefined): string {
   return '/dashboard';
 }
-export { MenuItem };
+export type { MenuItem };
 
