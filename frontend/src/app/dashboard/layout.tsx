@@ -118,11 +118,7 @@ export default function DashboardLayout({
         {/* Sidebar Header with Logo - Branding Anchor */}
         <div className="p-6 border-b-2 border-gray-200 h-[88px] flex items-center bg-gradient-to-br from-gray-50 to-white">
           <div className="flex items-center gap-3 w-full">
-            <div className="w-12 h-12 flex-shrink-0 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg">
-              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
-              </svg>
-            </div>
+            <div className="text-4xl">🏠</div>
             <div>
               <p className="text-sm font-bold text-gray-900">RentFlow</p>
               <p className="text-xs text-gray-600 font-medium">{getDashboardTitleForRole(user?.role)}</p>
@@ -163,11 +159,7 @@ export default function DashboardLayout({
             {/* Sidebar Header */}
             <div className="p-6 border-b-2 border-gray-200 h-[88px] flex items-center bg-gradient-to-br from-gray-50 to-white">
               <div className="flex items-center gap-3 w-full">
-                <div className="w-12 h-12 flex-shrink-0 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-md">
-                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
-                  </svg>
-                </div>
+                <div className="text-4xl">🏠</div>
                 <div>
                   <p className="text-sm font-bold text-gray-900">RentFlow</p>
                   <p className="text-xs text-gray-500">{getDashboardTitleForRole(user?.role)}</p>

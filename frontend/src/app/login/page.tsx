@@ -45,6 +45,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-white rounded-lg shadow-xl p-8">
         {/* Header */}
         <div className="text-center mb-8">
+          <div className="inline-block text-6xl mb-4">🏠</div>
           <h1 className="text-3xl font-bold text-rentflow-navy">RentFlow</h1>
           <p className="text-gray-600 mt-2">Property Management System</p>
         </div>

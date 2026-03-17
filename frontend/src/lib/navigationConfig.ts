@@ -4,9 +4,7 @@ import { MenuItem, UserRole } from './types';
 export const roleMenuConfig: Record<UserRole, MenuItem[]> = {
   admin: [
     { name: 'Dashboard', href: '/dashboard', icon: '📊', description: 'System overview' },
-    { name: 'Agents', href: '/dashboard/agents', icon: '👨‍💼', description: 'Agent management' },
-    { name: 'Reports', href: '/dashboard/reports', icon: '📈', description: 'Analytics & reports' },
-    { name: 'Settings', href: '/dashboard/settings', icon: '⚙️', description: 'System settings' },
+    { name: 'Settings', href: '/dashboard/settings', icon: '⚙️', description: 'Account settings' },
   ],
 
   landlord: [
