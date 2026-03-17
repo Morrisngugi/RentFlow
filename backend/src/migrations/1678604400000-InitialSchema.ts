@@ -49,15 +49,19 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'tenant_profiles',
-      new TableForeignKey({
-        columnNames: ['userId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'tenant_profiles',
+        new TableForeignKey({
+          columnNames: ['userId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     await queryRunner.createTable(
       new Table({
@@ -75,15 +79,19 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'agent_profiles',
-      new TableForeignKey({
-        columnNames: ['userId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'agent_profiles',
+        new TableForeignKey({
+          columnNames: ['userId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     await queryRunner.createTable(
       new Table({
@@ -105,15 +113,19 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'landlord_profiles',
-      new TableForeignKey({
-        columnNames: ['userId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'landlord_profiles',
+        new TableForeignKey({
+          columnNames: ['userId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 3. AGENT-LANDLORD ASSIGNMENT
@@ -134,25 +146,33 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'agent_landlord_assignments',
-      new TableForeignKey({
-        columnNames: ['agentId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'agent_landlord_assignments',
+        new TableForeignKey({
+          columnNames: ['agentId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
-    await queryRunner.createForeignKey(
-      'agent_landlord_assignments',
-      new TableForeignKey({
-        columnNames: ['landlordId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'agent_landlord_assignments',
+        new TableForeignKey({
+          columnNames: ['landlordId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 4. PROPERTIES TABLE
@@ -167,7 +187,7 @@ export class InitialSchema1678604400000 implements MigrationInterface {
           { name: 'address', type: 'text' },
           { name: 'city', type: 'varchar' },
           { name: 'postalCode', type: 'varchar', isNullable: true },
-          { name: 'country', type: 'varchar', default: 'Kenya' },
+          { name: 'country', type: 'varchar', default: "'Kenya'", isNullable: false },
           { name: 'bedrooms', type: 'int', isNullable: true },
           { name: 'bathrooms', type: 'int', isNullable: true },
           { name: 'sqft', type: 'int', isNullable: true },
@@ -185,15 +205,19 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'properties',
-      new TableForeignKey({
-        columnNames: ['landlordId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'properties',
+        new TableForeignKey({
+          columnNames: ['landlordId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 5. PROPERTY IMAGES
@@ -213,15 +237,19 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'property_images',
-      new TableForeignKey({
-        columnNames: ['propertyId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'properties',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'property_images',
+        new TableForeignKey({
+          columnNames: ['propertyId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'properties',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 6. LEASE TERMS
@@ -260,7 +288,7 @@ export class InitialSchema1678604400000 implements MigrationInterface {
           { name: 'depositPaidDate', type: 'date', isNullable: true },
           { name: 'startDate', type: 'date' },
           { name: 'endDate', type: 'date' },
-          { name: 'status', type: 'enum', enum: ['draft', 'active', 'expired', 'terminated'], default: 'active' },
+          { name: 'status', type: 'enum', enum: ['draft', 'active', 'expired', 'terminated'], default: "'active'", isNullable: false },
           { name: 'createdAt', type: 'timestamp', default: 'CURRENT_TIMESTAMP' },
           { name: 'updatedAt', type: 'timestamp', default: 'CURRENT_TIMESTAMP' },
         ],
@@ -268,45 +296,61 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'leases',
-      new TableForeignKey({
-        columnNames: ['propertyId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'properties',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'leases',
+        new TableForeignKey({
+          columnNames: ['propertyId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'properties',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
-    await queryRunner.createForeignKey(
-      'leases',
-      new TableForeignKey({
-        columnNames: ['tenantId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'leases',
+        new TableForeignKey({
+          columnNames: ['tenantId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
-    await queryRunner.createForeignKey(
-      'leases',
-      new TableForeignKey({
-        columnNames: ['landlordId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'leases',
+        new TableForeignKey({
+          columnNames: ['landlordId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
-    await queryRunner.createForeignKey(
-      'leases',
-      new TableForeignKey({
-        columnNames: ['leaseTermId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'lease_terms',
-        onDelete: 'SET NULL',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'leases',
+        new TableForeignKey({
+          columnNames: ['leaseTermId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'lease_terms',
+          onDelete: 'SET NULL',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 8. LEASE RENEWALS
@@ -326,15 +370,19 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'lease_renewals',
-      new TableForeignKey({
-        columnNames: ['leaseId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'leases',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'lease_renewals',
+        new TableForeignKey({
+          columnNames: ['leaseId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'leases',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 9. RENT SCHEDULES
@@ -353,15 +401,19 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'rent_schedules',
-      new TableForeignKey({
-        columnNames: ['leaseId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'leases',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'rent_schedules',
+        new TableForeignKey({
+          columnNames: ['leaseId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'leases',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 10. PAYMENTS
@@ -378,7 +430,7 @@ export class InitialSchema1678604400000 implements MigrationInterface {
           { name: 'amountDue', type: 'numeric' },
           { name: 'paymentMethod', type: 'enum', enum: ['stripe', 'bank_transfer', 'cash', 'check'], isNullable: true },
           { name: 'stripePaymentIntentId', type: 'varchar', isNullable: true },
-          { name: 'status', type: 'enum', enum: ['pending', 'completed', 'failed', 'refunded'], default: 'pending' },
+          { name: 'status', type: 'enum', enum: ['pending', 'completed', 'failed', 'refunded'], default: "'pending'", isNullable: false },
           { name: 'dueDate', type: 'date' },
           { name: 'paidDate', type: 'timestamp', isNullable: true },
           { name: 'createdAt', type: 'timestamp', default: 'CURRENT_TIMESTAMP' },
@@ -388,35 +440,47 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'payments',
-      new TableForeignKey({
-        columnNames: ['leaseId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'leases',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'payments',
+        new TableForeignKey({
+          columnNames: ['leaseId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'leases',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
-    await queryRunner.createForeignKey(
-      'payments',
-      new TableForeignKey({
-        columnNames: ['tenantId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'payments',
+        new TableForeignKey({
+          columnNames: ['tenantId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
-    await queryRunner.createForeignKey(
-      'payments',
-      new TableForeignKey({
-        columnNames: ['landlordId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'payments',
+        new TableForeignKey({
+          columnNames: ['landlordId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 11. DEPOSITS
@@ -430,7 +494,7 @@ export class InitialSchema1678604400000 implements MigrationInterface {
           { name: 'tenantId', type: 'uuid' },
           { name: 'landlordId', type: 'uuid' },
           { name: 'amount', type: 'numeric' },
-          { name: 'status', type: 'enum', enum: ['pending', 'held', 'released', 'forfeited'], default: 'pending' },
+          { name: 'status', type: 'enum', enum: ['pending', 'held', 'released', 'forfeited'], default: "'pending'", isNullable: false },
           { name: 'collectedDate', type: 'date', isNullable: true },
           { name: 'releasedDate', type: 'date', isNullable: true },
           { name: 'notes', type: 'text', isNullable: true },
@@ -441,35 +505,47 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'deposits',
-      new TableForeignKey({
-        columnNames: ['leaseId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'leases',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'deposits',
+        new TableForeignKey({
+          columnNames: ['leaseId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'leases',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
-    await queryRunner.createForeignKey(
-      'deposits',
-      new TableForeignKey({
-        columnNames: ['tenantId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'deposits',
+        new TableForeignKey({
+          columnNames: ['tenantId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
-    await queryRunner.createForeignKey(
-      'deposits',
-      new TableForeignKey({
-        columnNames: ['landlordId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'deposits',
+        new TableForeignKey({
+          columnNames: ['landlordId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 12. LATE FEES
@@ -484,32 +560,40 @@ export class InitialSchema1678604400000 implements MigrationInterface {
           { name: 'daysOverdue', type: 'int' },
           { name: 'feeAmount', type: 'numeric' },
           { name: 'feePercentage', type: 'numeric', isNullable: true },
-          { name: 'status', type: 'enum', enum: ['pending', 'paid', 'waived'], default: 'pending' },
+          { name: 'status', type: 'enum', enum: ['pending', 'paid', 'waived'], default: "'pending'", isNullable: false },
           { name: 'createdAt', type: 'timestamp', default: 'CURRENT_TIMESTAMP' },
         ],
       }),
       true
     );
 
-    await queryRunner.createForeignKey(
-      'late_fees',
-      new TableForeignKey({
-        columnNames: ['paymentId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'payments',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'late_fees',
+        new TableForeignKey({
+          columnNames: ['paymentId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'payments',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
-    await queryRunner.createForeignKey(
-      'late_fees',
-      new TableForeignKey({
-        columnNames: ['leaseId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'leases',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'late_fees',
+        new TableForeignKey({
+          columnNames: ['leaseId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'leases',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 13. COMPLAINTS
@@ -525,7 +609,7 @@ export class InitialSchema1678604400000 implements MigrationInterface {
           { name: 'title', type: 'varchar' },
           { name: 'description', type: 'text' },
           { name: 'complaintType', type: 'enum', enum: ['maintenance', 'billing', 'safety', 'noise', 'other'], isNullable: true },
-          { name: 'status', type: 'enum', enum: ['open', 'in_progress', 'resolved', 'closed'], default: 'open' },
+          { name: 'status', type: 'enum', enum: ['open', 'in_progress', 'resolved', 'closed'], default: "'open'", isNullable: false },
           { name: 'attachmentUrls', type: 'text', isNullable: true },
           { name: 'createdAt', type: 'timestamp', default: 'CURRENT_TIMESTAMP' },
           { name: 'resolvedAt', type: 'timestamp', isNullable: true },
@@ -535,35 +619,47 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'complaints',
-      new TableForeignKey({
-        columnNames: ['leaseId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'leases',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'complaints',
+        new TableForeignKey({
+          columnNames: ['leaseId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'leases',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
-    await queryRunner.createForeignKey(
-      'complaints',
-      new TableForeignKey({
-        columnNames: ['tenantId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'complaints',
+        new TableForeignKey({
+          columnNames: ['tenantId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
-    await queryRunner.createForeignKey(
-      'complaints',
-      new TableForeignKey({
-        columnNames: ['landlordId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'complaints',
+        new TableForeignKey({
+          columnNames: ['landlordId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 14. COMPLAINT ATTACHMENTS
@@ -583,15 +679,19 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'complaint_attachments',
-      new TableForeignKey({
-        columnNames: ['complaintId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'complaints',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'complaint_attachments',
+        new TableForeignKey({
+          columnNames: ['complaintId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'complaints',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 15. NOTIFICATIONS
@@ -617,15 +717,19 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'notifications',
-      new TableForeignKey({
-        columnNames: ['userId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'notifications',
+        new TableForeignKey({
+          columnNames: ['userId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // 16. NOTIFICATION PREFERENCES
@@ -653,15 +757,19 @@ export class InitialSchema1678604400000 implements MigrationInterface {
       true
     );
 
-    await queryRunner.createForeignKey(
-      'notification_preferences',
-      new TableForeignKey({
-        columnNames: ['userId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'users',
-        onDelete: 'CASCADE',
-      })
-    );
+    try {
+      await queryRunner.createForeignKey(
+        'notification_preferences',
+        new TableForeignKey({
+          columnNames: ['userId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'users',
+          onDelete: 'CASCADE',
+        })
+      );
+    } catch (err) {
+      // Constraint already exists, skip
+    }
 
     // ============================================
     // CREATE INDEXES FOR PERFORMANCE

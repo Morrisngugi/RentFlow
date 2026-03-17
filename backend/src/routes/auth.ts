@@ -40,7 +40,7 @@ router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
-    const { email, phoneNumber, firstName, lastName, idNumber, password } = req.body;
+    const { email, phoneNumber, firstName, lastName, idNumber, password, role } = req.body;
     const result = await authService.register({
       email,
       phoneNumber,
@@ -48,6 +48,7 @@ router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
       lastName,
       idNumber,
       password,
+      role: role || 'tenant',
     });
 
     return res.status(201).json({
@@ -140,6 +141,7 @@ router.get('/profile', authenticate, async (req: AuthenticatedRequest, res: Resp
         lastName: user.lastName,
         phoneNumber: user.phoneNumber,
         idNumber: user.idNumber,
+        role: user.role,
         profilePictureUrl: user.profilePictureUrl,
         isActive: user.isActive,
         createdAt: user.createdAt,

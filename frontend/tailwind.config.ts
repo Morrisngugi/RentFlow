@@ -8,9 +8,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: '#3b82f6',
-        secondary: '#10b981',
-        danger: '#ef4444',
+        // RentFlow Brand Colors
+        'rentflow': {
+          'navy': '#141A46',        // Primary - Rent
+          'gold': '#EEAA23',         // Accent - low & Top of F
+          'teal': '#00203F',         // Accent - Bottom of F
+        },
+        // Semantic colors using brand palette
+        'primary': '#141A46',        // Navy Blue
+        'secondary': '#00203F',      // Deep Teal
+        'accent': '#EEAA23',         // Gold
+      },
+      backgroundImage: {
+        'gradient-rentflow': 'linear-gradient(135deg, #141A46 0%, #00203F 100%)',
+        'gradient-warm': 'linear-gradient(135deg, #EEAA23 0%, #141A46 100%)',
       },
     },
   },

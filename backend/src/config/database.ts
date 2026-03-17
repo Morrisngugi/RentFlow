@@ -72,8 +72,32 @@ export async function initializeDatabase() {
           if (migrations.length > 0) {
             console.log(`✅ Successfully ran ${migrations.length} migration(s)!`);
           }
-        } catch (migrationError) {
-          console.warn('⚠️  Migration execution warning (might already be applied):', migrationError);
+          
+          // Seed admin user if needed
+          console.log('🌱 Seeding initial data...');
+          const userRepo = AppDataSource.getRepository(User);
+          const existingAdmin = await userRepo.findOneBy({ email: 'admin@rentflow.com' });
+          
+          if (!existingAdmin) {
+            const bcrypt = await import('bcryptjs');
+            const passwordHash = await bcrypt.hash('admin123', 10);
+            const admin = userRepo.create({
+              email: 'admin@rentflow.com',
+              phoneNumber: '0000000000',
+              firstName: 'System',
+              lastName: 'Admin',
+              idNumber: 'ADMIN-0001',
+              passwordHash,
+              role: 'admin',
+              isActive: true
+            });
+            await userRepo.save(admin);
+            console.log('✅ System admin user created: admin@rentflow.com / admin123');
+          } else {
+            console.log('✅ Admin user already exists');
+          }
+        } catch (seedError) {
+          console.warn('⚠️  Seed execution warning:', seedError);
         }
       }
     }

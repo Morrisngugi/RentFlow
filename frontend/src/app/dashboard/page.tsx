@@ -70,14 +70,14 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-blue-600">RentFlow</h1>
+              <h1 className="text-2xl font-bold text-rentflow-navy">RentFlow</h1>
               <p className="text-xs text-gray-500 mt-1">
                 {isAdmin ? 'Admin' : isAgent ? 'Agent' : user?.role || 'User'} Dashboard
               </p>
             </div>
             <button
               onClick={handleLogout}
-              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+              className="bg-rentflow-teal text-white px-4 py-2 rounded-lg hover:bg-rentflow-navy"
             >
               Logout
             </button>
@@ -88,8 +88,8 @@ export default function DashboardPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Welcome Section */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+        <div className="bg-white rounded-lg shadow p-6 mb-8 border-l-4 border-rentflow-gold">
+          <h1 className="text-3xl font-bold text-rentflow-navy mb-2">
             Welcome, {user?.firstName} {user?.lastName}!
           </h1>
           <p className="text-gray-600">{user?.email}</p>
@@ -100,17 +100,17 @@ export default function DashboardPage() {
         {isAdmin && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Link href="/agents">
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer">
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:border-l-4 hover:border-rentflow-gold transition cursor-pointer">
                 <div className="text-3xl mb-2">👥</div>
-                <h3 className="text-lg font-semibold text-gray-800">Manage Agents</h3>
+                <h3 className="text-lg font-semibold text-rentflow-navy">Manage Agents</h3>
                 <p className="text-gray-600 text-sm mt-2">View and add agents to the system</p>
               </div>
             </Link>
 
             <Link href="/profile">
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer">
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:border-l-4 hover:border-rentflow-gold transition cursor-pointer">
                 <div className="text-3xl mb-2">⚙️</div>
-                <h3 className="text-lg font-semibold text-gray-800">Profile Settings</h3>
+                <h3 className="text-lg font-semibold text-rentflow-navy">Profile Settings</h3>
                 <p className="text-gray-600 text-sm mt-2">Update your password and profile</p>
               </div>
             </Link>
@@ -121,65 +121,65 @@ export default function DashboardPage() {
         {isAgent && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Link href="/properties">
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer">
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:border-l-4 hover:border-rentflow-gold transition cursor-pointer">
                 <div className="text-3xl mb-2">🏠</div>
-                <h3 className="text-lg font-semibold text-gray-800">Properties</h3>
+                <h3 className="text-lg font-semibold text-rentflow-navy">Properties</h3>
                 <p className="text-gray-600 text-sm mt-2">View all properties</p>
               </div>
             </Link>
 
             <Link href="/landlords">
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer">
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:border-l-4 hover:border-rentflow-gold transition cursor-pointer">
                 <div className="text-3xl mb-2">🏢</div>
-                <h3 className="text-lg font-semibold text-gray-800">Landlords</h3>
+                <h3 className="text-lg font-semibold text-rentflow-navy">Landlords</h3>
                 <p className="text-gray-600 text-sm mt-2">Manage landlords</p>
               </div>
             </Link>
 
             <Link href="/leases">
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer">
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:border-l-4 hover:border-rentflow-gold transition cursor-pointer">
                 <div className="text-3xl mb-2">📄</div>
-                <h3 className="text-lg font-semibold text-gray-800">Leases</h3>
+                <h3 className="text-lg font-semibold text-rentflow-navy">Leases</h3>
                 <p className="text-gray-600 text-sm mt-2">Manage leases</p>
               </div>
             </Link>
 
             <Link href="/payments">
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer">
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:border-l-4 hover:border-rentflow-gold transition cursor-pointer">
                 <div className="text-3xl mb-2">💰</div>
-                <h3 className="text-lg font-semibold text-gray-800">Payments</h3>
+                <h3 className="text-lg font-semibold text-rentflow-navy">Payments</h3>
                 <p className="text-gray-600 text-sm mt-2">Track payments</p>
               </div>
             </Link>
 
             <Link href="/complaints">
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer">
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:border-l-4 hover:border-rentflow-gold transition cursor-pointer">
                 <div className="text-3xl mb-2">⚠️</div>
-                <h3 className="text-lg font-semibold text-gray-800">Complaints</h3>
+                <h3 className="text-lg font-semibold text-rentflow-navy">Complaints</h3>
                 <p className="text-gray-600 text-sm mt-2">View complaints</p>
               </div>
             </Link>
 
             <Link href="/notifications">
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer">
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:border-l-4 hover:border-rentflow-gold transition cursor-pointer">
                 <div className="text-3xl mb-2">🔔</div>
-                <h3 className="text-lg font-semibold text-gray-800">Notifications</h3>
+                <h3 className="text-lg font-semibold text-rentflow-navy">Notifications</h3>
                 <p className="text-gray-600 text-sm mt-2">Check notifications</p>
               </div>
             </Link>
 
             <Link href="/tenants">
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer">
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:border-l-4 hover:border-rentflow-gold transition cursor-pointer">
                 <div className="text-3xl mb-2">👨‍👩‍👧</div>
-                <h3 className="text-lg font-semibold text-gray-800">Tenants</h3>
+                <h3 className="text-lg font-semibold text-rentflow-navy">Tenants</h3>
                 <p className="text-gray-600 text-sm mt-2">Manage tenants</p>
               </div>
             </Link>
 
             <Link href="/profile">
-              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer">
+              <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg hover:border-l-4 hover:border-rentflow-gold transition cursor-pointer">
                 <div className="text-3xl mb-2">⚙️</div>
-                <h3 className="text-lg font-semibold text-gray-800">Profile</h3>
+                <h3 className="text-lg font-semibold text-rentflow-navy">Profile</h3>
                 <p className="text-gray-600 text-sm mt-2">Edit profile</p>
               </div>
             </Link>

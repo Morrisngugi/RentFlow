@@ -17,6 +17,7 @@ export interface AuthResponse {
     email: string;
     firstName: string;
     lastName: string;
+    role: string;
   };
   token: string;
   expiresIn: string;
@@ -76,6 +77,7 @@ export class AuthService {
     lastName: string;
     idNumber: string;
     password: string;
+    role?: string;
   }): Promise<AuthResponse> {
     // Check if user already exists
     const existingUser = await this.userRepository.findOne({
@@ -90,6 +92,7 @@ export class AuthService {
     const passwordHash = await this.hashPassword(userData.password);
 
     // Create new user
+    const userRole = (userData.role || 'tenant') as 'admin' | 'agent' | 'landlord' | 'tenant';
     const user = this.userRepository.create({
       email: userData.email,
       phoneNumber: userData.phoneNumber,
@@ -97,6 +100,7 @@ export class AuthService {
       lastName: userData.lastName,
       idNumber: userData.idNumber,
       passwordHash,
+      role: userRole,
       isActive: true,
     });
 
@@ -111,6 +115,7 @@ export class AuthService {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        role: user.role,
       },
       token,
       expiresIn: env.JWT_EXPIRY,
@@ -124,7 +129,7 @@ export class AuthService {
     // Find user with password hash
     const user = await this.userRepository.findOne({
       where: { email },
-      select: ['id', 'email', 'firstName', 'lastName', 'passwordHash', 'isActive'],
+      select: ['id', 'email', 'firstName', 'lastName', 'passwordHash', 'isActive', 'role'],
     });
 
     if (!user) {
@@ -150,6 +155,7 @@ export class AuthService {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        role: user.role,
       },
       token,
       expiresIn: env.JWT_EXPIRY,
