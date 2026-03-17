@@ -4,11 +4,7 @@ import { MenuItem, UserRole } from './types';
 export const roleMenuConfig: Record<UserRole, MenuItem[]> = {
   admin: [
     { name: 'Dashboard', href: '/dashboard', icon: '📊', description: 'System overview' },
-    { name: 'Properties', href: '/dashboard/properties', icon: '🏠', description: 'All properties' },
-    { name: 'Landlords', href: '/dashboard/landlords', icon: '👨‍💼', description: 'Landlord management' },
-    { name: 'Tenants', href: '/dashboard/tenants', icon: '👥', description: 'Tenant management' },
-    { name: 'Leases', href: '/dashboard/leases', icon: '📄', description: 'Active leases' },
-    { name: 'Payments', href: '/dashboard/payments', icon: '💰', description: 'Payment tracking' },
+    { name: 'Agents', href: '/dashboard/agents', icon: '👨‍💼', description: 'Agent management' },
     { name: 'Reports', href: '/dashboard/reports', icon: '📈', description: 'Analytics & reports' },
     { name: 'Settings', href: '/dashboard/settings', icon: '⚙️', description: 'System settings' },
   ],
@@ -33,9 +29,11 @@ export const roleMenuConfig: Record<UserRole, MenuItem[]> = {
 
   agent: [
     { name: 'Dashboard', href: '/dashboard', icon: '📊', description: 'Overview' },
-    { name: 'Properties', href: '/dashboard/properties', icon: '🏠', description: 'Listed properties' },
-    { name: 'Listings', href: '/dashboard/listings', icon: '📋', description: 'My listings' },
-    { name: 'Clients', href: '/dashboard/clients', icon: '👥', description: 'Clients' },
+    { name: 'Landlords', href: '/dashboard/landlords', icon: '👨‍💼', description: 'Manage landlords' },
+    { name: 'Properties', href: '/dashboard/properties', icon: '🏠', description: 'All properties' },
+    { name: 'Tenants', href: '/dashboard/tenants', icon: '👥', description: 'Tenant management' },
+    { name: 'Leases', href: '/dashboard/leases', icon: '📄', description: 'Active leases' },
+    { name: 'Payments', href: '/dashboard/payments', icon: '💰', description: 'Payment tracking' },
     { name: 'Reports', href: '/dashboard/reports', icon: '📈', description: 'Performance' },
     { name: 'Profile', href: '/dashboard/profile', icon: '👤', description: 'My profile' },
   ],

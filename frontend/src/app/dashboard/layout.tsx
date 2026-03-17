@@ -112,40 +112,40 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 flex-col z-40">
-        {/* Sidebar Header with Logo */}
-        <div className="p-6 border-b border-gray-200 h-[88px] flex items-center">
+    <div className="min-h-screen bg-gray-100">
+      {/* Desktop Sidebar - Three Pane Architecture */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-full w-64 bg-white flex-col z-40 shadow-lg border-r-2 border-gray-200">
+        {/* Sidebar Header with Logo - Branding Anchor */}
+        <div className="p-6 border-b-2 border-gray-200 h-[88px] flex items-center bg-gradient-to-br from-gray-50 to-white">
           <div className="flex items-center gap-3 w-full">
-            <div className="w-12 h-12 flex-shrink-0 bg-gradient-to-br from-rentflow-navy to-rentflow-teal rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 flex-shrink-0 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-lg">
               <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
               </svg>
             </div>
             <div>
               <p className="text-sm font-bold text-gray-900">RentFlow</p>
-              <p className="text-xs text-gray-500">{getDashboardTitleForRole(user?.role)}</p>
+              <p className="text-xs text-gray-600 font-medium">{getDashboardTitleForRole(user?.role)}</p>
             </div>
           </div>
         </div>
 
-        {/* Navigation Menu */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {/* Navigation Menu - Primary Links */}
+        <nav className="flex-1 p-4 overflow-y-auto space-y-0.5">
           {menuItems.map((item: MenuItem) => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center px-4 py-3 rounded-lg transition ${
+                className={`flex items-center px-4 py-3 rounded-lg transition-all duration-200 group ${
                   isActive
-                    ? 'bg-gradient-to-r from-rentflow-gold/20 to-rentflow-navy/20 text-rentflow-navy font-medium border-l-4 border-rentflow-gold'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-900 font-semibold border-l-4 border-blue-600 shadow-sm'
+                    : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                 }`}
               >
-                <span className="text-xl mr-3">{item.icon}</span>
-                <span className="text-sm">{item.name}</span>
+                <span className="text-xl mr-3 group-hover:scale-110 transition-transform">{item.icon}</span>
+                <span className="text-sm font-medium">{item.name}</span>
               </Link>
             );
           })}
@@ -156,14 +156,14 @@ export default function DashboardLayout({
       {sidebarOpen && (
         <>
           <div
-            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
             onClick={() => setSidebarOpen(false)}
           />
-          <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col z-60 animate-slide-in">
+          <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r-2 border-gray-200 flex flex-col z-60 animate-slide-in shadow-2xl">
             {/* Sidebar Header */}
-            <div className="p-6 border-b border-gray-200 h-[88px] flex items-center">
+            <div className="p-6 border-b-2 border-gray-200 h-[88px] flex items-center bg-gradient-to-br from-gray-50 to-white">
               <div className="flex items-center gap-3 w-full">
-                <div className="w-12 h-12 flex-shrink-0 bg-gradient-to-br from-rentflow-navy to-rentflow-teal rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 flex-shrink-0 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center shadow-md">
                   <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
                   </svg>
@@ -176,22 +176,22 @@ export default function DashboardLayout({
             </div>
 
             {/* Navigation Menu */}
-            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            <nav className="flex-1 p-4 overflow-y-auto space-y-0.5">
               {menuItems.map((item: MenuItem) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center px-4 py-3 rounded-lg transition ${
+                    className={`flex items-center px-4 py-3 rounded-lg transition-all duration-200 group ${
                       isActive
-                        ? 'bg-gradient-to-r from-rentflow-gold/20 to-rentflow-navy/20 text-rentflow-navy font-medium border-l-4 border-rentflow-gold'
-                        : 'text-gray-700 hover:bg-gray-100'
+                        ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-900 font-semibold border-l-4 border-blue-600 shadow-sm'
+                        : 'text-gray-700 hover:bg-gray-100 border-l-4 border-transparent'
                     }`}
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <span className="text-xl mr-3">{item.icon}</span>
-                    <span className="text-sm">{item.name}</span>
+                    <span className="text-xl mr-3 group-hover:scale-110 transition-transform">{item.icon}</span>
+                    <span className="text-sm font-medium">{item.name}</span>
                   </Link>
                 );
               })}
@@ -200,16 +200,16 @@ export default function DashboardLayout({
         </>
       )}
 
-      {/* Main Content */}
+      {/* Main Content - Central Work Area */}
       <main className="md:ml-64 min-h-screen">
-        {/* Top Navigation Bar */}
-        <div className="fixed top-0 right-0 md:left-64 left-0 z-[90] h-[56px] md:h-[88px] flex items-center">
-          {/* Nav Background with Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-rentflow-gold/5 to-white"></div>
-          <div className="absolute inset-0 backdrop-blur-md bg-white/70"></div>
+        {/* Top Navigation Bar - Slim Persistent Bar */}
+        <div className="fixed top-0 right-0 md:left-64 left-0 z-[90] h-[56px] md:h-[88px] flex items-center bg-white shadow-md">
+          {/* Nav Background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white to-gray-50"></div>
+          <div className="absolute inset-0 backdrop-blur-sm bg-white/95"></div>
 
           {/* Nav Content */}
-          <div className="relative h-full px-4 md:px-8 border-b border-gray-200/50 shadow-md flex items-center w-full">
+          <div className="relative h-full px-4 md:px-8 border-b-2 border-gray-200 flex items-center w-full">
             {/* Hamburger for mobile */}
             <button
               className="md:hidden flex items-center justify-center mr-3 p-2 rounded-lg hover:bg-gray-100 focus:outline-none z-[91]"
@@ -245,7 +245,7 @@ export default function DashboardLayout({
                       }}
                     />
                   ) : (
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-rentflow-gold to-rentflow-navy text-white flex items-center justify-center font-bold shadow-md ring-2 ring-white text-sm">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center font-bold shadow-md ring-2 ring-white text-sm">
                       {user?.name?.[0]?.toUpperCase() || 'U'}
                     </div>
                   )}
@@ -281,10 +281,10 @@ export default function DashboardLayout({
               className="fixed right-4 md:right-8 top-[56px] md:top-[88px] w-64 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[110]"
             >
               {/* Dropdown Header */}
-              <div className="px-5 py-4 bg-gradient-to-r from-rentflow-gold/10 to-rentflow-navy/10 border-b border-gray-200">
+              <div className="px-5 py-4 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-gray-200">
                 <div className="text-sm font-semibold text-gray-900">{user?.name}</div>
                 <div className="text-xs text-gray-600 mt-1">{user?.email}</div>
-                <div className="mt-2 inline-block px-3 py-1 bg-gradient-to-r from-rentflow-navy to-rentflow-gold text-white text-xs font-medium rounded-full">
+                <div className="mt-2 inline-block px-3 py-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xs font-medium rounded-full">
                   {user?.role}
                 </div>
               </div>
@@ -313,8 +313,8 @@ export default function DashboardLayout({
           </>
         )}
 
-        {/* Page Content */}
-        <div className="pt-[56px] md:pt-[88px] p-4 md:p-8">{children}</div>
+        {/* Page Content - Main Work Area with Ample Whitespace */}
+        <div className="pt-[56px] md:pt-[88px] p-6 md:p-10 min-h-screen">{children}</div>
       </main>
 
       {/* Add slide-in animation for sidebar */}
