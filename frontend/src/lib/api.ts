@@ -91,13 +91,13 @@ export class ApiClient {
   }
 
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const response = await this.axiosInstance.post<LoginResponse>('/auth/login', credentials);
-    return response.data;
+    const response = await this.axiosInstance.post<any>('/auth/login', credentials);
+    return response.data.data;
   }
 
   async getProfile(): Promise<User> {
-    const response = await this.axiosInstance.get<User>('/users/profile');
-    return response.data;
+    const response = await this.axiosInstance.get<any>('/auth/profile');
+    return response.data.data;
   }
 
   async logout(): Promise<void> {
@@ -106,17 +106,18 @@ export class ApiClient {
   }
 
   async updateProfile(data: Partial<User>): Promise<User> {
-    const response = await this.axiosInstance.put<User>('/users/profile', data);
-    return response.data;
+    const response = await this.axiosInstance.put<any>('/auth/profile', data);
+    return response.data.data;
   }
 
   async getNotifications(): Promise<any[]> {
-    const response = await this.axiosInstance.get('/users/notifications');
-    return response.data;
+    // Notifications endpoint not yet implemented in backend
+    return [];
   }
 
   async markNotificationAsRead(notificationId: number): Promise<void> {
-    await this.axiosInstance.put(`/users/notifications/${notificationId}/read`);
+    // Notifications endpoint not yet implemented in backend
+    return;
   }
 }
 

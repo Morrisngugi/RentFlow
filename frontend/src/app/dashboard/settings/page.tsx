@@ -3,32 +3,78 @@
 import { useState } from 'react';
 
 export default function SettingsPage() {
+  // Profile section state
   const [name, setName] = useState('Admin User');
   const [email, setEmail] = useState('admin@rentflow.io');
+  const [originalName, setOriginalName] = useState('Admin User');
+  const [originalEmail, setOriginalEmail] = useState('admin@rentflow.io');
+  
+  // Password section state
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  
+  // UI state
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
 
-  const handleSaveSettings = () => {
-    setMessage('Settings saved successfully!');
+  // Check if profile has changes
+  const profileHasChanges = name !== originalName || email !== originalEmail;
+
+  const handleSaveProfile = async () => {
+    // TODO: Add actual API call to save profile
+    setOriginalName(name);
+    setOriginalEmail(email);
+    setMessageType('success');
+    setMessage('Profile saved successfully!');
     setTimeout(() => setMessage(''), 3000);
   };
 
+  const handleCancelProfile = () => {
+    setName(originalName);
+    setEmail(originalEmail);
+    setMessage('Changes cancelled');
+    setMessageType('success');
+    setTimeout(() => setMessage(''), 2000);
+  };
+
   const handleChangePassword = () => {
+    if (!currentPassword) {
+      setMessageType('error');
+      setMessage('Current password is required');
+      return;
+    }
+    if (!newPassword) {
+      setMessageType('error');
+      setMessage('New password is required');
+      return;
+    }
     if (newPassword !== confirmPassword) {
+      setMessageType('error');
       setMessage('New passwords do not match');
       return;
     }
     if (newPassword.length < 6) {
+      setMessageType('error');
       setMessage('Password must be at least 6 characters');
       return;
     }
+    // TODO: Add actual API call to change password
+    setMessageType('success');
     setMessage('Password changed successfully!');
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
     setTimeout(() => setMessage(''), 3000);
+  };
+
+  const handleCancelPassword = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setMessage('Password change cancelled');
+    setMessageType('success');
+    setTimeout(() => setMessage(''), 2000);
   };
 
   return (
@@ -39,10 +85,18 @@ export default function SettingsPage() {
         <p className="text-gray-600 text-lg">Manage your account and security settings</p>
       </div>
 
-      {/* Success Message */}
+      {/* Success/Error Message */}
       {message && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-green-800 font-medium">{message}</p>
+        <div className={`mb-6 p-4 rounded-lg border ${
+          messageType === 'success' 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-red-50 border-red-200'
+        }`}>
+          <p className={`font-medium ${
+            messageType === 'success' 
+              ? 'text-green-800' 
+              : 'text-red-800'
+          }`}>{message}</p>
         </div>
       )}
 
@@ -77,13 +131,29 @@ export default function SettingsPage() {
               />
             </div>
 
-            {/* Save Button */}
-            <div className="pt-4 border-t border-gray-200">
+            {/* Action Buttons */}
+            <div className="pt-6 border-t border-gray-200 flex gap-3">
               <button
-                onClick={handleSaveSettings}
-                className="px-6 py-2 bg-rentflow-blue text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                onClick={handleSaveProfile}
+                disabled={!profileHasChanges}
+                className={`px-8 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                  profileHasChanges
+                    ? 'bg-green-600 text-white hover:bg-green-700 active:scale-95 shadow-md'
+                    : 'bg-green-200 text-green-800 cursor-not-allowed border border-green-300'
+                }`}
               >
-                Save Profile
+                💾 Save Changes
+              </button>
+              <button
+                onClick={handleCancelProfile}
+                disabled={!profileHasChanges}
+                className={`px-8 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                  profileHasChanges
+                    ? 'bg-amber-500 text-white hover:bg-amber-600 active:scale-95 shadow-md'
+                    : 'bg-amber-200 text-amber-800 cursor-not-allowed border border-amber-300'
+                }`}
+              >
+                ✕ Cancel
               </button>
             </div>
           </div>
@@ -130,13 +200,29 @@ export default function SettingsPage() {
               />
             </div>
 
-            {/* Change Password Button */}
-            <div className="pt-4 border-t border-gray-200">
+            {/* Action Buttons */}
+            <div className="pt-6 border-t border-gray-200 flex gap-3">
               <button
                 onClick={handleChangePassword}
-                className="px-6 py-2 bg-rentflow-blue text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                disabled={!currentPassword || !newPassword}
+                className={`px-8 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                  currentPassword && newPassword
+                    ? 'bg-green-600 text-white hover:bg-green-700 active:scale-95 shadow-md'
+                    : 'bg-green-200 text-green-800 cursor-not-allowed border border-green-300'
+                }`}
               >
-                Change Password
+                💾 Update Password
+              </button>
+              <button
+                onClick={handleCancelPassword}
+                disabled={!currentPassword && !newPassword && !confirmPassword}
+                className={`px-8 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                  currentPassword || newPassword || confirmPassword
+                    ? 'bg-amber-500 text-white hover:bg-amber-600 active:scale-95 shadow-md'
+                    : 'bg-amber-200 text-amber-800 cursor-not-allowed border border-amber-300'
+                }`}
+              >
+                ✕ Cancel
               </button>
             </div>
           </div>

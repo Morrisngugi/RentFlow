@@ -27,51 +27,64 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    // Load mock agent data
-    setAgents([
-      {
-        id: '1',
-        name: 'John Kariuki',
-        email: 'john.kariuki@example.com',
-        phone: '0722111222',
-        status: 'Active',
-        createdAt: '2/28/2026',
-      },
-      {
-        id: '2',
-        name: 'Sarah Omondi',
-        email: 'sarah.omondi@example.com',
-        phone: '0733222333',
-        status: 'Active',
-        createdAt: '3/5/2026',
-      },
-      {
-        id: '3',
-        name: 'Michael Kipchoge',
-        email: 'michael.kip@example.com',
-        phone: '0701333444',
-        status: 'Active',
-        createdAt: '3/1/2026',
-      },
-      {
-        id: '4',
-        name: 'Grace Ngeno',
-        email: 'grace.ngeno@example.com',
-        phone: '0722444555',
-        status: 'Active',
-        createdAt: '2/15/2026',
-      },
-      {
-        id: '5',
-        name: 'David Mwangi',
-        email: 'david.mwangi@example.com',
-        phone: '0741555666',
-        status: 'Active',
-        createdAt: '3/10/2026',
-      },
-    ]);
-    setLoading(false);
-  }, []);
+    // Fetch agents from database if admin
+    if (user?.role === 'admin') {
+      fetchAgents();
+    }
+  }, [user]);
+
+  const fetchAgents = async () => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+      const endpoint = `${apiUrl}/agents`;
+      
+      console.log(`🔄 Fetching agents from: ${endpoint}`);
+      
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      console.log(`📊 Agent endpoint response status: ${response.status} ${response.statusText}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Successfully fetched ${data.data?.length || 0} agents`, data);
+        const agentList = data.data ? data.data.map((agent: any) => ({
+          id: agent.id || agent.userId,
+          name: `${agent.firstName} ${agent.lastName}`,
+          email: agent.email,
+          phone: agent.phoneNumber,
+          status: agent.isActive ? 'Active' : 'Inactive',
+          createdAt: new Date(agent.createdAt).toLocaleDateString(),
+        })) : [];
+        setAgents(agentList);
+        console.log(`📋 Displaying ${agentList.length} agents on dashboard`);
+      } else {
+        // Log the error response for debugging
+        let errorDetails = '';
+        try {
+          const errorData = await response.json();
+          errorDetails = JSON.stringify(errorData, null, 2);
+        } catch (e) {
+          errorDetails = await response.text();
+        }
+        console.error(`❌ Agent endpoint error (${response.status}):`, errorDetails);
+        // Show empty list instead of mock data - API call succeeded but no agents exist
+        setAgents([]);
+      }
+    } catch (error) {
+      console.error('❌ Network error fetching agents:', error);
+      // Still show empty list on network error - we can retry
+      setAgents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getInitials = (name: string) => {
     return name
