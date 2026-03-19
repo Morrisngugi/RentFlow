@@ -11,6 +11,8 @@ import requestLogger from './middleware/requestLogger';
 import authRoutes from './routes/auth';
 import agentRoutes from './routes/agents';
 import propertyRoutes from './routes/properties';
+import landlordRoutes from './routes/landlords';
+import tenantRoutes from './routes/tenants';
 
 const app: Express = express();
 
@@ -48,6 +50,8 @@ app.get('/api/v1', (req: Request, res: Response) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/agents', agentRoutes);
 app.use('/api/v1/properties', propertyRoutes);
+app.use('/api/v1/landlords', landlordRoutes);
+app.use('/api/v1/tenants', tenantRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
