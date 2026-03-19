@@ -27,53 +27,45 @@ export default function AgentDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
-    // Load mock agent data based on ID
-    const mockAgents: Record<string, Agent> = {
-      '1': {
-        id: '1',
-        firstName: 'John',
-        lastName: 'Kariuki',
-        email: 'john.kariuki@example.com',
-        phoneNumber: '0722111222',
-        idNumber: '1234567890',
-        officeName: 'Nairobi Central Office',
-        officeLocation: 'Nairobi, Kenya',
-        status: 'Active',
-        createdAt: '2/28/2026',
-      },
-      '2': {
-        id: '2',
-        firstName: 'Sarah',
-        lastName: 'Omondi',
-        email: 'sarah.omondi@example.com',
-        phoneNumber: '0733222333',
-        idNumber: '1234567891',
-        officeName: 'Westlands Branch',
-        officeLocation: 'Westlands, Nairobi',
-        status: 'Active',
-        createdAt: '3/5/2026',
-      },
-      '3': {
-        id: '3',
-        firstName: 'Michael',
-        lastName: 'Kipchoge',
-        email: 'michael.kip@example.com',
-        phoneNumber: '0701333444',
-        idNumber: '1234567892',
-        officeName: 'Karen Office',
-        officeLocation: 'Karen, Nairobi',
-        status: 'Active',
-        createdAt: '3/1/2026',
-      },
+    const fetchAgent = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agents/${agentId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Agent not found');
+        }
+
+        const responseData = await response.json();
+        const agentData = responseData.data;
+        
+        setAgent({
+          id: agentData.id,
+          firstName: agentData.firstName,
+          lastName: agentData.lastName,
+          email: agentData.email,
+          phoneNumber: agentData.phoneNumber,
+          idNumber: agentData.idNumber,
+          officeName: agentData.officeName || 'N/A',
+          officeLocation: agentData.officeLocation || 'N/A',
+          status: agentData.isActive ? 'Active' : 'Inactive',
+          createdAt: new Date(agentData.createdAt).toLocaleDateString(),
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load agent');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const selectedAgent = mockAgents[agentId];
-    if (selectedAgent) {
-      setAgent(selectedAgent);
-    } else {
-      setError('Agent not found');
+    if (agentId) {
+      fetchAgent();
     }
-    setLoading(false);
   }, [agentId]);
 
   const handleEdit = () => {

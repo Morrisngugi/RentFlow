@@ -1,13 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
+  const router = useRouter();
+  
   // Profile section state
-  const [name, setName] = useState('Admin User');
-  const [email, setEmail] = useState('admin@rentflow.io');
-  const [originalName, setOriginalName] = useState('Admin User');
-  const [originalEmail, setOriginalEmail] = useState('admin@rentflow.io');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [originalName, setOriginalName] = useState('');
+  const [originalEmail, setOriginalEmail] = useState('');
   
   // Password section state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -17,17 +20,91 @@ export default function SettingsPage() {
   // UI state
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+  const [loading, setLoading] = useState(true);
+
+  // Load user profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          router.push('/login');
+          return;
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile`, {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile');
+        }
+
+        const data = await response.json();
+        const fullName = `${data.data.firstName} ${data.data.lastName}`;
+        
+        setName(fullName);
+        setEmail(data.data.email);
+        setOriginalName(fullName);
+        setOriginalEmail(data.data.email);
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        setMessageType('error');
+        setMessage('Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [router]);
 
   // Check if profile has changes
   const profileHasChanges = name !== originalName || email !== originalEmail;
 
   const handleSaveProfile = async () => {
-    // TODO: Add actual API call to save profile
-    setOriginalName(name);
-    setOriginalEmail(email);
-    setMessageType('success');
-    setMessage('Profile saved successfully!');
-    setTimeout(() => setMessage(''), 3000);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      // Split name into first and last
+      const nameParts = name.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email: originalEmail, // Email cannot be changed
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save profile');
+      }
+
+      setOriginalName(name);
+      setOriginalEmail(email);
+      setMessageType('success');
+      setMessage('Profile saved successfully!');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      setMessageType('error');
+      setMessage(error instanceof Error ? error.message : 'Failed to save profile');
+    }
   };
 
   const handleCancelProfile = () => {
@@ -38,7 +115,7 @@ export default function SettingsPage() {
     setTimeout(() => setMessage(''), 2000);
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!currentPassword) {
       setMessageType('error');
       setMessage('Current password is required');
@@ -59,13 +136,42 @@ export default function SettingsPage() {
       setMessage('Password must be at least 6 characters');
       return;
     }
-    // TODO: Add actual API call to change password
-    setMessageType('success');
-    setMessage('Password changed successfully!');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setTimeout(() => setMessage(''), 3000);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Failed to change password');
+      }
+
+      setMessageType('success');
+      setMessage('Password changed successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error changing password:', error);
+      setMessageType('error');
+      setMessage(error instanceof Error ? error.message : 'Failed to change password');
+    }
   };
 
   const handleCancelPassword = () => {
@@ -85,6 +191,13 @@ export default function SettingsPage() {
         <p className="text-gray-600 text-lg">Manage your account and security settings</p>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center text-gray-600 py-8">
+          <p>Loading your profile...</p>
+        </div>
+      )}
+
       {/* Success/Error Message */}
       {message && (
         <div className={`mb-6 p-4 rounded-lg border ${
@@ -101,6 +214,7 @@ export default function SettingsPage() {
       )}
 
       {/* Settings Grid */}
+      {!loading && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Profile Information */}
         <div className="bg-white rounded-lg shadow-md p-8">
@@ -228,8 +342,10 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Password Requirements */}
+      {!loading && (
       <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
         <h3 className="font-semibold text-gray-900 mb-3">Password Requirements:</h3>
         <ul className="text-sm text-gray-700 space-y-2 list-disc list-inside">
@@ -239,6 +355,7 @@ export default function SettingsPage() {
           <li>Include at least one special character (!@#$%^&*)</li>
         </ul>
       </div>
+      )}
     </div>
   );
 }

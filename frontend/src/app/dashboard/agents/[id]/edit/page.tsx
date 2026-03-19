@@ -36,47 +36,43 @@ export default function EditAgentPage() {
   });
 
   useEffect(() => {
-    // Load mock agent data based on ID
-    const mockAgents: Record<string, Agent> = {
-      '1': {
-        id: '1',
-        firstName: 'John',
-        lastName: 'Kariuki',
-        email: 'john.kariuki@example.com',
-        phoneNumber: '0722111222',
-        idNumber: '1234567890',
-        officeName: 'Nairobi Central Office',
-        officeLocation: 'Nairobi, Kenya',
-      },
-      '2': {
-        id: '2',
-        firstName: 'Sarah',
-        lastName: 'Omondi',
-        email: 'sarah.omondi@example.com',
-        phoneNumber: '0733222333',
-        idNumber: '1234567891',
-        officeName: 'Westlands Branch',
-        officeLocation: 'Westlands, Nairobi',
-      },
-      '3': {
-        id: '3',
-        firstName: 'Michael',
-        lastName: 'Kipchoge',
-        email: 'michael.kip@example.com',
-        phoneNumber: '0701333444',
-        idNumber: '1234567892',
-        officeName: 'Karen Office',
-        officeLocation: 'Karen, Nairobi',
-      },
+    const fetchAgent = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agents/${agentId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Agent not found');
+        }
+
+        const responseData = await response.json();
+        const agentData = responseData.data;
+        
+        setFormData({
+          id: agentData.id,
+          firstName: agentData.firstName,
+          lastName: agentData.lastName,
+          email: agentData.email,
+          phoneNumber: agentData.phoneNumber,
+          idNumber: agentData.idNumber,
+          officeName: agentData.officeName || '',
+          officeLocation: agentData.officeLocation || '',
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load agent');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const selectedAgent = mockAgents[agentId];
-    if (selectedAgent) {
-      setFormData(selectedAgent);
-    } else {
-      setError('Agent not found');
+    if (agentId) {
+      fetchAgent();
     }
-    setLoading(false);
   }, [agentId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
