@@ -9,11 +9,15 @@ import {
 } from 'typeorm';
 import { User } from '../User';
 import { PropertyImage } from './PropertyImage';
+import { PropertyFloor } from './PropertyFloor';
 import { Lease } from '../lease/Lease';
 
 @Entity('properties')
 export class Property {
   @PrimaryGeneratedColumn('uuid') id!: string;
+
+  @Column({ type: 'uuid' })
+  agentId!: string; // Agent who created/manages this property
 
   @Column({ type: 'uuid' })
   landlordId!: string;
@@ -73,12 +77,20 @@ export class Property {
 
   // Relations
   @ManyToOne(() => User)
+  agent!: User;
+
+  @ManyToOne(() => User)
   landlord!: User;
 
   @OneToMany(() => PropertyImage, (image) => image.property, {
     cascade: true,
   })
   images!: PropertyImage[];
+
+  @OneToMany(() => PropertyFloor, (floor) => floor.property, {
+    cascade: true,
+  })
+  floors!: PropertyFloor[];
 
   @OneToMany(() => Lease, (lease) => lease.property)
   leases!: Lease[];

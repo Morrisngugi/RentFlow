@@ -10,6 +10,7 @@ import errorHandler from './middleware/errorHandler';
 import requestLogger from './middleware/requestLogger';
 import authRoutes from './routes/auth';
 import agentRoutes from './routes/agents';
+import propertyRoutes from './routes/properties';
 
 const app: Express = express();
 
@@ -46,11 +47,7 @@ app.get('/api/v1', (req: Request, res: Response) => {
 // API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/agents', agentRoutes);
-
-// Future routes
-// app.use('/api/v1/properties', propertyRoutes);
-// app.use('/api/v1/leases', leaseRoutes);
-// app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/properties', propertyRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

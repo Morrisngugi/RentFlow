@@ -10,6 +10,8 @@ import { LandlordProfile } from '../entities/profile/LandlordProfile';
 import { AgentLandlordAssignment } from '../entities/AgentLandlordAssignment';
 import { Property } from '../entities/property/Property';
 import { PropertyImage } from '../entities/property/PropertyImage';
+import { PropertyFloor } from '../entities/property/PropertyFloor';
+import { PropertyUnit } from '../entities/property/PropertyUnit';
 import { Lease } from '../entities/lease/Lease';
 import { LeaseRenewal } from '../entities/lease/LeaseRenewal';
 import { LeaseTerm } from '../entities/lease/LeaseTerm';
@@ -41,6 +43,8 @@ export const AppDataSource = new DataSource({
     AgentLandlordAssignment,
     Property,
     PropertyImage,
+    PropertyFloor,
+    PropertyUnit,
     Lease,
     LeaseRenewal,
     LeaseTerm,
