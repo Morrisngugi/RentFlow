@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsNotEmpty } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class RegisterRequest {
   @IsEmail({}, { message: 'Email must be a valid email address' })
@@ -45,15 +45,19 @@ export class ChangePasswordRequest {
 }
 
 export class UpdateProfileRequest {
+  @IsOptional()
   @IsString({ message: 'First name must be a string' })
   firstName?: string;
 
+  @IsOptional()
   @IsString({ message: 'Last name must be a string' })
   lastName?: string;
 
+  @IsOptional()
   @IsString({ message: 'Phone number must be a string' })
   phoneNumber?: string;
 
+  @IsOptional()
   @IsString({ message: 'Profile picture URL must be a string' })
   profilePictureUrl?: string;
 }

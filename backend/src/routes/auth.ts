@@ -179,6 +179,11 @@ router.put('/profile', authenticate, async (req: AuthenticatedRequest, res: Resp
     if (errors.length > 0) {
       const messages = errors
         .flatMap((err) => Object.values(err.constraints || {}));
+      console.error('❌ Profile update validation failed:', {
+        userId: req.user?.userId,
+        payload: req.body,
+        errors: messages,
+      });
       return res.status(400).json({
         error: {
           status: 400,
@@ -207,6 +212,11 @@ router.put('/profile', authenticate, async (req: AuthenticatedRequest, res: Resp
       },
     });
   } catch (error: any) {
+    console.error('❌ Profile update error:', {
+      userId: req.user?.userId,
+      error: error.message,
+      stack: error.stack,
+    });
     return res.status(500).json({
       error: {
         status: 500,
@@ -237,6 +247,11 @@ router.post('/change-password', authenticate, async (req: AuthenticatedRequest, 
     if (errors.length > 0) {
       const messages = errors
         .flatMap((err) => Object.values(err.constraints || {}));
+      console.error('❌ Change password validation failed:', {
+        userId: req.user?.userId,
+        payload: Object.keys(req.body),
+        errors: messages,
+      });
       return res.status(400).json({
         error: {
           status: 400,
