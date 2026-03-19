@@ -176,25 +176,36 @@ export default function EditAgentPage() {
     <div>
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Edit Agent</h1>
-        <p className="text-gray-600 text-lg">Update agent information</p>
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">Edit Agent Profile</h1>
+        <p className="text-gray-600 text-lg">Update agent information and office details</p>
       </div>
 
-      {/* Success Message */}
-      {success && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-green-800 font-medium">Agent updated successfully! Redirecting...</p>
+      {/* Success/Error Message */}
+      {(success || error) && (
+        <div className={`mb-6 p-4 rounded-lg border ${
+          success
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-red-50 border-red-200'
+        }`}>
+          <p className={`font-medium ${
+            success
+              ? 'text-green-800' 
+              : 'text-red-800'
+          }`}>
+            {success ? '✅ Agent updated successfully! Redirecting...' : `❌ ${error}`}
+          </p>
         </div>
       )}
 
-      {/* Error Message */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-800 font-medium">{error}</p>
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center text-gray-600 py-8">
+          <p>Loading agent details...</p>
         </div>
       )}
 
       {/* Form Container */}
+      {!loading && (
       <div className="bg-white rounded-lg shadow-md p-8">
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Personal Information Section */}
@@ -204,7 +215,7 @@ export default function EditAgentPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* First Name */}
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">First Name *</label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">First Name</label>
                 <input
                   type="text"
                   name="firstName"
@@ -218,7 +229,7 @@ export default function EditAgentPage() {
 
               {/* Last Name */}
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Last Name *</label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Last Name</label>
                 <input
                   type="text"
                   name="lastName"
@@ -230,15 +241,15 @@ export default function EditAgentPage() {
                 />
               </div>
 
-              {/* ID Number */}
+              {/* Email */}
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">ID Number *</label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Email Address</label>
                 <input
-                  type="text"
-                  name="idNumber"
-                  value={formData.idNumber}
+                  type="email"
+                  name="email"
+                  value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="Enter ID number"
+                  placeholder="Enter email address"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rentflow-blue bg-white"
                   required
                 />
@@ -246,7 +257,7 @@ export default function EditAgentPage() {
 
               {/* Phone Number */}
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Phone Number *</label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Phone Number</label>
                 <input
                   type="tel"
                   name="phoneNumber"
@@ -258,15 +269,15 @@ export default function EditAgentPage() {
                 />
               </div>
 
-              {/* Email */}
+              {/* ID Number */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Email Address *</label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">ID Number</label>
                 <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
+                  type="text"
+                  name="idNumber"
+                  value={formData.idNumber}
                   onChange={handleInputChange}
-                  placeholder="Enter email address"
+                  placeholder="Enter ID number"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rentflow-blue bg-white"
                   required
                 />
@@ -281,7 +292,7 @@ export default function EditAgentPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Office Name */}
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Office Name *</label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Office Name</label>
                 <input
                   type="text"
                   name="officeName"
@@ -295,7 +306,7 @@ export default function EditAgentPage() {
 
               {/* Office Location */}
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Office Location *</label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Office Location</label>
                 <input
                   type="text"
                   name="officeLocation"
@@ -310,24 +321,29 @@ export default function EditAgentPage() {
           </div>
 
           {/* Form Actions */}
-          <div className="flex gap-4 pt-6 border-t border-gray-200">
+          <div className="pt-6 border-t border-gray-200 flex gap-3">
             <button
               type="submit"
               disabled={saving}
-              className="px-8 py-3 bg-rentflow-blue text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`px-8 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                saving
+                  ? 'bg-green-300 text-green-800 cursor-not-allowed border border-green-300'
+                  : 'bg-green-600 text-white hover:bg-green-700 active:scale-95 shadow-md'
+              }`}
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? '⏳ Saving...' : '💾 Save Changes'}
             </button>
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-8 py-3 border border-gray-300 text-gray-900 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+              className="px-8 py-3 bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 active:scale-95 shadow-md transition-all whitespace-nowrap"
             >
-              Cancel
+              ✕ Cancel
             </button>
           </div>
         </form>
       </div>
+      )}
     </div>
   );
 }
