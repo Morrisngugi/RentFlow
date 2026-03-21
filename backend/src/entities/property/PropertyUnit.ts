@@ -45,4 +45,10 @@ export class PropertyUnit {
     onDelete: 'CASCADE',
   })
   floor!: any;
+
+  @ManyToOne('User', {
+    nullable: true,
+    eager: false,
+  })
+  tenant!: any;
 }

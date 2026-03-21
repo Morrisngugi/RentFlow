@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/common/Button';
+import CreateTenantModal from '@/components/CreateTenantModal';
+import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
@@ -58,6 +60,12 @@ export default function PropertyDetailsPage() {
 
   const [property, setProperty] = useState<PropertyDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState<{
+    id: string;
+    unitNumber: number;
+    roomType: string;
+  } | null>(null);
 
   useEffect(() => {
     if (propertyId) {
@@ -90,6 +98,46 @@ export default function PropertyDetailsPage() {
       toast.error('Failed to load property details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenTenantModal = (unit: Unit) => {
+    setSelectedUnit(unit);
+    setModalOpen(true);
+  };
+
+  const handleCloseTenantModal = () => {
+    setModalOpen(false);
+    setSelectedUnit(null);
+  };
+
+  const handleTenantCreated = () => {
+    // Refresh property details to show updated unit status
+    fetchPropertyDetails();
+  };
+
+  const handleRemoveTenant = async (unitId: string) => {
+    if (!confirm('Are you sure you want to remove the tenant from this unit?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${API_URL}/properties/${propertyId}/units/${unitId}/remove-tenant`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to remove tenant');
+
+      toast.success('Tenant removed successfully');
+      fetchPropertyDetails();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to remove tenant';
+      toast.error(message);
     }
   };
 
@@ -256,6 +304,27 @@ export default function PropertyDetailsPage() {
                         Tenant ID: {unit.currentTenantId.substring(0, 8)}...
                       </p>
                     )}
+                    
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 mt-4">
+                      {unit.status === 'vacant' ? (
+                        <button
+                          onClick={() => handleOpenTenantModal(unit)}
+                          className="flex-1 text-xs font-semibold px-3 py-1 rounded bg-opacity-20 bg-black hover:bg-opacity-30 flex items-center justify-center gap-1"
+                        >
+                          <Plus size={14} />
+                          Add Tenant
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleRemoveTenant(unit.id)}
+                          className="flex-1 text-xs font-semibold px-3 py-1 rounded bg-opacity-20 bg-black hover:bg-opacity-30 flex items-center justify-center gap-1"
+                        >
+                          <Trash2 size={14} />
+                          Remove
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -277,6 +346,19 @@ export default function PropertyDetailsPage() {
           <Button className="bg-blue-600 hover:bg-blue-700 text-white">Edit Property</Button>
         </Link>
       </div>
+
+      {/* Create Tenant Modal */}
+      {selectedUnit && (
+        <CreateTenantModal
+          isOpen={modalOpen}
+          unitId={selectedUnit.id}
+          propertyId={propertyId}
+          unitNumber={selectedUnit.unitNumber}
+          roomType={selectedUnit.roomType}
+          onClose={handleCloseTenantModal}
+          onTenantCreated={handleTenantCreated}
+        />
+      )}
     </div>
   );
 }
