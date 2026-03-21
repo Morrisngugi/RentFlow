@@ -3,6 +3,9 @@ import { AppDataSource } from '../config/database';
 import { User } from '../entities/User';
 import { PropertyUnit } from '../entities/property/PropertyUnit';
 import { TenantProfile } from '../entities/profile/TenantProfile';
+import { Lease } from '../entities/lease/Lease';
+import { LeaseTerm } from '../entities/lease/LeaseTerm';
+import { Property } from '../entities/property/Property';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import bcrypt from 'bcrypt';
 
@@ -35,19 +38,53 @@ router.post(
   verifyUnit,
   async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { firstName, lastName, email, phoneNumber } = req.body;
-      const { unitId } = req.params;
+      const { 
+        firstName, 
+        lastName, 
+        email, 
+        phoneNumber,
+        monthlyRent,
+        depositPaid,
+        dateJoined,
+        leaseTermMonths,
+        notes
+      } = req.body;
+      const { propertyId, unitId } = req.params;
 
-      // Validate input
+      console.log('Create tenant request body:', JSON.stringify(req.body, null, 2));
+      console.log('Create tenant request params:', { propertyId, unitId });
+      console.log('Extracted fields:', { 
+        firstName, 
+        lastName, 
+        email, 
+        phoneNumber, 
+        monthlyRent,
+        depositPaid,
+        dateJoined,
+        leaseTermMonths,
+        notes,
+      });
+
+      // Validate input - basic fields required
       if (!firstName || !lastName || !email || !phoneNumber) {
+        console.error('Validation failed:', { 
+          firstName: { value: firstName, checks: { empty: !firstName } },
+          lastName: { value: lastName, checks: { empty: !lastName } },
+          email: { value: email, checks: { empty: !email } },
+          phoneNumber: { value: phoneNumber, checks: { empty: !phoneNumber } },
+        });
         return res.status(400).json({
-          error: 'firstName, lastName, email, and phoneNumber are required',
+          error: 'Missing required fields: firstName, lastName, email, phoneNumber',
+          received: { firstName, lastName, email, phoneNumber },
         });
       }
 
       const userRepo = AppDataSource.getRepository(User);
       const unitRepo = AppDataSource.getRepository(PropertyUnit);
       const tenantProfileRepo = AppDataSource.getRepository(TenantProfile);
+      const leaseRepo = AppDataSource.getRepository(Lease);
+      const leaseTermRepo = AppDataSource.getRepository(LeaseTerm);
+      const propertyRepo = AppDataSource.getRepository(Property);
 
       // Check if email already exists
       const existingUser = await userRepo.findOne({ where: { email } });
@@ -55,6 +92,12 @@ router.post(
         return res
           .status(400)
           .json({ error: 'Email already registered' });
+      }
+
+      // Get property
+      const property = await propertyRepo.findOne({ where: { id: propertyId } });
+      if (!property) {
+        return res.status(404).json({ error: 'Property not found' });
       }
 
       // Create tenant account
@@ -87,6 +130,45 @@ router.post(
 
       await unitRepo.save(unit);
 
+      // Create or find LeaseTerm based on leaseTermMonths
+      let leaseTerm = await leaseTermRepo.findOne({
+        where: { durationMonths: leaseTermMonths || 12 },
+      });
+
+      if (!leaseTerm) {
+        leaseTerm = leaseTermRepo.create({
+          name: `${leaseTermMonths || 12}-Month Lease`,
+          durationMonths: leaseTermMonths || 12,
+          autoRenewal: false,
+          noticePeriodDays: 30,
+        });
+        await leaseTermRepo.save(leaseTerm);
+      }
+
+      // Calculate lease dates
+      const startDate = new Date(dateJoined || new Date());
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + (leaseTermMonths || 12));
+
+      // Create Lease record
+      const lease = leaseRepo.create({
+        tenantId: newTenant.id,
+        leaseTermId: leaseTerm.id,
+        monthlyRent: monthlyRent ? parseFloat(monthlyRent) : 0,
+        securityDeposit: depositPaid ? parseFloat(depositPaid) : 0,
+        depositPaid: !!depositPaid,
+        depositPaidDate: depositPaid ? new Date(dateJoined || new Date()) : undefined,
+        startDate,
+        endDate,
+        status: 'active',
+      });
+
+      // Set non-relation columns directly
+      lease.propertyId = propertyId;
+      lease.landlordId = property.landlordId;
+
+      await leaseRepo.save(lease);
+
       res.status(201).json({
         message: 'Tenant created and assigned successfully',
         tenant: {
@@ -99,6 +181,15 @@ router.post(
           isActive: newTenant.isActive,
           defaultPassword: 'tenant@123',
         },
+        lease: {
+          id: lease.id,
+          monthlyRent: lease.monthlyRent,
+          securityDeposit: lease.securityDeposit,
+          depositPaid: lease.depositPaid,
+          startDate: lease.startDate,
+          endDate: lease.endDate,
+          status: lease.status,
+        },
         unit: {
           id: unit.id,
           unitNumber: unit.unitNumber,
@@ -109,7 +200,7 @@ router.post(
       });
     } catch (error) {
       console.error('Error creating tenant:', error);
-      res.status(500).json({ error: 'Failed to create tenant' });
+      res.status(500).json({ error: 'Failed to create tenant', details: error instanceof Error ? error.message : '' });
     }
   }
 );

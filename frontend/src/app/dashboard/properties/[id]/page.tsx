@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/common/Button';
-import CreateTenantModal from '@/components/CreateTenantModal';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -60,12 +59,6 @@ export default function PropertyDetailsPage() {
 
   const [property, setProperty] = useState<PropertyDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedUnit, setSelectedUnit] = useState<{
-    id: string;
-    unitNumber: number;
-    roomType: string;
-  } | null>(null);
 
   useEffect(() => {
     if (propertyId) {
@@ -101,20 +94,7 @@ export default function PropertyDetailsPage() {
     }
   };
 
-  const handleOpenTenantModal = (unit: Unit) => {
-    setSelectedUnit(unit);
-    setModalOpen(true);
-  };
 
-  const handleCloseTenantModal = () => {
-    setModalOpen(false);
-    setSelectedUnit(null);
-  };
-
-  const handleTenantCreated = () => {
-    // Refresh property details to show updated unit status
-    fetchPropertyDetails();
-  };
 
   const handleRemoveTenant = async (unitId: string) => {
     if (!confirm('Are you sure you want to remove the tenant from this unit?')) return;
@@ -308,13 +288,12 @@ export default function PropertyDetailsPage() {
                     {/* Action Buttons */}
                     <div className="flex gap-2 mt-4">
                       {unit.status === 'vacant' ? (
-                        <button
-                          onClick={() => handleOpenTenantModal(unit)}
-                          className="flex-1 text-xs font-semibold px-3 py-1 rounded bg-opacity-20 bg-black hover:bg-opacity-30 flex items-center justify-center gap-1"
-                        >
-                          <Plus size={14} />
-                          Add Tenant
-                        </button>
+                        <Link href={`/dashboard/properties/${propertyId}/units/${unit.id}/add-tenant`} className="flex-1">
+                          <button className="w-full text-xs font-semibold px-3 py-1 rounded bg-opacity-20 bg-black hover:bg-opacity-30 flex items-center justify-center gap-1">
+                            <Plus size={14} />
+                            Add Tenant
+                          </button>
+                        </Link>
                       ) : (
                         <button
                           onClick={() => handleRemoveTenant(unit.id)}
@@ -347,18 +326,7 @@ export default function PropertyDetailsPage() {
         </Link>
       </div>
 
-      {/* Create Tenant Modal */}
-      {selectedUnit && (
-        <CreateTenantModal
-          isOpen={modalOpen}
-          unitId={selectedUnit.id}
-          propertyId={propertyId}
-          unitNumber={selectedUnit.unitNumber}
-          roomType={selectedUnit.roomType}
-          onClose={handleCloseTenantModal}
-          onTenantCreated={handleTenantCreated}
-        />
-      )}
+
     </div>
   );
 }

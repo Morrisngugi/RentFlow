@@ -29,6 +29,11 @@ export default function CreateTenantModal({
     lastName: '',
     email: '',
     phoneNumber: '',
+    monthlyRent: '',
+    depositPaid: '',
+    dateJoined: new Date().toISOString().split('T')[0],
+    leaseTermMonths: '12',
+    notes: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,7 +66,17 @@ export default function CreateTenantModal({
 
       const result = await response.json();
       toast.success('Tenant created successfully!');
-      setFormData({ firstName: '', lastName: '', email: '', phoneNumber: '' });
+      setFormData({ 
+        firstName: '', 
+        lastName: '', 
+        email: '', 
+        phoneNumber: '',
+        monthlyRent: '',
+        depositPaid: '',
+        dateJoined: new Date().toISOString().split('T')[0],
+        leaseTermMonths: '12',
+        notes: '',
+      });
       onTenantCreated();
       onClose();
     } catch (error) {
@@ -157,6 +172,86 @@ export default function CreateTenantModal({
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
             />
+          </div>
+
+          {/* Lease Details Section */}
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Lease Details</h3>
+            
+            {/* Monthly Rent */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Monthly Rent (KES)
+              </label>
+              <input
+                type="number"
+                name="monthlyRent"
+                value={formData.monthlyRent}
+                onChange={handleChange}
+                placeholder="e.g., 25000"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+              />
+            </div>
+
+            {/* Deposit Paid */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Deposit Paid (KES)
+              </label>
+              <input
+                type="number"
+                name="depositPaid"
+                value={formData.depositPaid}
+                onChange={handleChange}
+                placeholder="e.g., 50000"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+              />
+            </div>
+
+            {/* Date Joined */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date Joined
+              </label>
+              <input
+                type="date"
+                name="dateJoined"
+                value={formData.dateJoined}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+              />
+            </div>
+
+            {/* Lease Term Months */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Lease Term (Months)
+              </label>
+              <input
+                type="number"
+                name="leaseTermMonths"
+                value={formData.leaseTermMonths}
+                onChange={handleChange}
+                placeholder="e.g., 12"
+                min="1"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Notes
+              </label>
+              <input
+                type="text"
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                placeholder="e.g., Any additional notes..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+              />
+            </div>
           </div>
 
           {/* Info Box */}
