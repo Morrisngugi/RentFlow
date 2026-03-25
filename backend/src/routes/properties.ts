@@ -291,7 +291,7 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
     const propertyRepo = AppDataSource.getRepository(Property);
     const property = await propertyRepo.findOne({
       where: { id: req.params.id, agentId: req.user.userId },
-      relations: ['landlord', 'floors', 'floors.units'],
+      relations: ['landlord', 'floors', 'floors.units', 'roomTypePricing'],
     });
 
     if (!property) {
@@ -317,12 +317,12 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
         monthlyRent: property.monthlyRent,
         depositAmount: property.depositAmount,
         propertyType: property.propertyType,
-        landlord: {
+        landlord: property.landlord ? {
           id: property.landlord.id,
           firstName: property.landlord.firstName,
           lastName: property.landlord.lastName,
           email: property.landlord.email,
-        },
+        } : null,
         floors: property.floors.map((floor) => ({
           id: floor.id,
           floorNumber: floor.floorNumber,
@@ -334,6 +334,14 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
             status: unit.status,
             currentTenantId: unit.currentTenantId,
           })),
+        })),
+        roomTypePricings: property.roomTypePricing.map((pricing) => ({
+          id: pricing.id,
+          roomType: pricing.roomType,
+          billingFrequency: pricing.billingFrequency,
+          price: pricing.price,
+          garbageAmount: pricing.garbageAmount,
+          waterUnitCost: pricing.waterUnitCost,
         })),
         createdAt: property.createdAt,
         updatedAt: property.updatedAt,

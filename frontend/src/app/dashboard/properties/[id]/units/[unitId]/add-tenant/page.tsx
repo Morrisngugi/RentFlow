@@ -44,9 +44,12 @@ export default function AddTenantPage() {
   const params = useParams();
   const { id: propertyId, unitId } = params as { id: string; unitId: string };
 
-  const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [unitInfo, setUnitInfo] = useState<any>(null);
+  const [property, setProperty] = useState<any>(null);
   const [autoRent, setAutoRent] = useState(false);
+  const [rentFetchError, setRentFetchError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
@@ -77,9 +80,9 @@ export default function AddTenantPage() {
     otherDepositDescription: '',
   });
 
-  // Fetch unit info on mount
+  // Fetch unit info and property pricing on mount
   React.useEffect(() => {
-    const fetchUnitInfo = async () => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');
         const response = await fetch(
@@ -90,27 +93,98 @@ export default function AddTenantPage() {
         );
 
         if (response.ok) {
-          const data = await response.json();
-          const unit = data.units?.find((u: any) => u.id === unitId);
-          if (unit) {
-            setUnitInfo(unit);
-            // Auto-populate rent if available from room type pricing
-            if (unit.roomType && data.roomTypePrices?.[unit.roomType]) {
-              setFormData(prev => ({
-                ...prev,
-                monthlyRent: data.roomTypePrices[unit.roomType]
-              }));
-              setAutoRent(true);
+          const apiResponse = await response.json();
+          const data = apiResponse.data;
+          
+          console.log('📦 Property Data Received:', {
+            propertyId,
+            hasData: !!data,
+            dataKeys: data ? Object.keys(data) : [],
+            roomTypePricings: data?.roomTypePricings,
+          });
+          
+          setProperty(data);
+          
+          // Find the specific unit from floors
+          let foundUnit: any = null;
+          if (data.floors && Array.isArray(data.floors)) {
+            for (const floor of data.floors) {
+              const unit = floor.units?.find((u: any) => u.id === unitId);
+              if (unit) {
+                foundUnit = unit;
+                break;
+              }
             }
           }
+          
+          if (foundUnit) {
+            console.log('🏠 Unit Found:', {
+              unitId,
+              unitNumber: foundUnit.unitNumber,
+              roomType: foundUnit.roomType,
+              status: foundUnit.status,
+            });
+            
+            setUnitInfo(foundUnit);
+            
+            // Auto-populate monthly rent from room type pricing
+            if (foundUnit.roomType && data.roomTypePricings) {
+              console.log('🔍 Looking for pricing:', {
+                roomType: foundUnit.roomType,
+                availablePricings: data.roomTypePricings.map((p: any) => ({
+                  roomType: p.roomType,
+                  price: p.price,
+                })),
+              });
+              
+              const pricing = data.roomTypePricings.find(
+                (p: any) => p.roomType === foundUnit.roomType
+              );
+              
+              if (pricing && pricing.price > 0) {
+                console.log('✅ Pricing Found - Auto-populating rent:', {
+                  roomType: pricing.roomType,
+                  price: pricing.price,
+                  garbageAmount: pricing.garbageAmount,
+                  waterUnitCost: pricing.waterUnitCost,
+                });
+                
+                setFormData(prev => ({
+                  ...prev,
+                  monthlyRent: pricing.price,
+                  garbageAmount: pricing.garbageAmount || prev.garbageAmount,
+                  waterUnitCost: pricing.waterUnitCost || prev.waterUnitCost,
+                }));
+                setAutoRent(true);
+              } else {
+                console.warn('⚠️ No pricing found for room type:', foundUnit.roomType);
+                setRentFetchError(`No pricing found for room type: ${foundUnit.roomType}`);
+              }
+            } else {
+              console.warn('⚠️ Missing roomType or roomTypePricings:', {
+                hasRoomType: !!foundUnit.roomType,
+                hasPricings: !!data.roomTypePricings,
+              });
+            }
+          } else {
+            console.error('❌ Unit not found:', unitId);
+            setRentFetchError('Unit not found');
+          }
+        } else {
+          const error = await response.json();
+          console.error('❌ Failed to fetch property:', response.status, error);
+          setRentFetchError('Failed to fetch property details');
         }
       } catch (error) {
-        console.error('Error fetching unit info:', error);
+        console.error('❌ Error fetching unit info:', error);
+        setRentFetchError('Error loading unit information');
+      } finally {
+        setPageLoading(false);
       }
     };
 
     if (propertyId && unitId) {
-      fetchUnitInfo();
+      fetchData();
     }
   }, [propertyId, unitId]);
 
@@ -167,7 +241,7 @@ export default function AddTenantPage() {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       const token = localStorage.getItem('token');
@@ -199,7 +273,7 @@ export default function AddTenantPage() {
       console.error('Error creating tenant:', error);
       toast.error('An error occurred while creating the tenant');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -213,9 +287,27 @@ export default function AddTenantPage() {
           </Link>
           <h1 className="text-3xl font-bold text-gray-900">Add New Tenant</h1>
           <p className="text-gray-600 mt-2">
-            {unitInfo ? `Unit ${unitInfo.unitNumber} • ${unitInfo.roomType}` : 'Add comprehensive tenant details and lease information'}
+            {pageLoading ? (
+              <span className="inline-flex items-center gap-2">
+                <div className="w-3 h-3 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                Loading unit information...
+              </span>
+            ) : unitInfo ? (
+              `Unit ${unitInfo.unitNumber} • ${unitInfo.roomType}`
+            ) : (
+              'Add comprehensive tenant details and lease information'
+            )}
           </p>
         </div>
+
+        {/* Error Alert */}
+        {!pageLoading && rentFetchError && (
+          <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+            <p className="text-sm text-orange-800">
+              ⚠️ {rentFetchError} - Please enter the monthly rent manually below.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* ========== PERSONAL INFORMATION SECTION ========== */}
@@ -420,15 +512,38 @@ export default function AddTenantPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Monthly Rent (KES) * {autoRent && <span className="text-xs text-green-600 font-semibold">(Auto-populated)</span>}
                 </label>
-                <input
-                  type="number"
-                  name="monthlyRent"
-                  value={formData.monthlyRent || ''}
-                  onChange={handleChange}
-                  placeholder="e.g., 25000"
-                  min="0"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                {pageLoading ? (
+                  <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                    <span className="text-gray-600 text-sm">Loading unit pricing...</span>
+                  </div>
+                ) : rentFetchError ? (
+                  <div>
+                    <input
+                      type="number"
+                      name="monthlyRent"
+                      value={formData.monthlyRent || ''}
+                      onChange={handleChange}
+                      placeholder="e.g., 25000"
+                      min="0"
+                      className="w-full px-4 py-3 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-orange-600 mt-1">{rentFetchError} - Please enter manually</p>
+                  </div>
+                ) : (
+                  <input
+                    type="number"
+                    name="monthlyRent"
+                    value={formData.monthlyRent || ''}
+                    onChange={handleChange}
+                    placeholder="e.g., 25000"
+                    min="0"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                )}
+                {autoRent && formData.monthlyRent > 0 && (
+                  <p className="text-xs text-green-600 mt-1">✓ Rent auto-populated from unit's {unitInfo?.roomType} pricing</p>
+                )}
               </div>
 
               {/* Security Fee */}
@@ -640,10 +755,10 @@ export default function AddTenantPage() {
             </Link>
             <button
               type="submit"
-              disabled={loading}
+              disabled={submitting || pageLoading}
               className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {loading ? (
+              {submitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   Creating Tenant...

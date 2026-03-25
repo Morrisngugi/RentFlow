@@ -40,7 +40,7 @@ interface PropertyDetails {
     firstName: string;
     lastName: string;
     email: string;
-  };
+  } | null;
   floors: Floor[];
   createdAt: string;
   updatedAt: string;
@@ -227,24 +227,30 @@ export default function PropertyDetailsPage() {
         {/* Landlord Information Sidebar */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Landlord Details</h2>
-          <div className="space-y-4">
-            <div>
-              <p className="text-gray-600 text-sm">Name</p>
-              <p className="font-medium text-gray-900">
-                {property.landlord.firstName} {property.landlord.lastName}
-              </p>
+          {property?.landlord ? (
+            <div className="space-y-4">
+              <div>
+                <p className="text-gray-600 text-sm">Name</p>
+                <p className="font-medium text-gray-900">
+                  {property.landlord?.firstName || 'N/A'} {property.landlord?.lastName || ''}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-600 text-sm">Email</p>
+                <p className="font-medium text-gray-900 break-all">{property.landlord?.email || 'N/A'}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-gray-600 text-sm">Email</p>
-              <p className="font-medium text-gray-900 break-all">{property.landlord.email}</p>
+          ) : (
+            <div className="text-gray-600">
+              <p>No landlord information available</p>
             </div>
-            <div className="pt-4 flex gap-2">
-              <Link href={`/dashboard/properties/${property.id}/edit`} className="flex-1">
-                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded">
-                  Edit Property
-                </Button>
-              </Link>
-            </div>
+          )}
+          <div className="pt-4 flex gap-2">
+            <Link href={`/dashboard/properties/${property.id}/edit`} className="flex-1">
+              <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded">
+                Edit Property
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
@@ -253,7 +259,7 @@ export default function PropertyDetailsPage() {
       <div className="space-y-6">
         <h2 className="text-2xl font-semibold text-gray-900">Floors & Units</h2>
 
-        {property.floors.length === 0 ? (
+        {!property?.floors || property.floors.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
             <p className="text-gray-600">No floors configured for this property</p>
           </div>

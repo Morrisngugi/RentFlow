@@ -70,7 +70,9 @@ export default function EditPropertyPage() {
           return;
         }
 
-        const data = await response.json();
+        const result = await response.json();
+        const data = result.data;
+        
         setProperty(data);
         setFormData({
           name: data.name,
