@@ -10,6 +10,7 @@ import {
 import { User } from '../User';
 import { PropertyImage } from './PropertyImage';
 import { PropertyFloor } from './PropertyFloor';
+import { PropertyRoomTypePricing } from './PropertyRoomTypePricing';
 import { Lease } from '../lease/Lease';
 
 @Entity('properties')
@@ -53,14 +54,24 @@ export class Property {
   })
   propertyType!: string;
 
+  @Column({
+    type: 'enum',
+    enum: ['rental', 'airbnb'],
+    default: 'rental',
+  })
+  propertyModel!: string; // rental = traditional monthly, airbnb = daily/weekly booking
+
+  @Column({ type: 'numeric', nullable: true, default: null })
+  securityFee!: number; // Optional monthly fee for security personnel (watchmen/guards). Only for rental properties.
+
   @Column({ type: 'text', nullable: true })
   description!: string;
 
-  @Column({ type: 'numeric' })
-  monthlyRent!: number;
+  @Column({ type: 'numeric', nullable: true })
+  monthlyRent!: number | null;
 
   @Column({ type: 'numeric', nullable: true })
-  depositAmount!: number;
+  depositAmount!: number | null;
 
   @Column({ type: 'simple-array', nullable: true })
   utilitiesIncluded!: string[];
@@ -91,6 +102,11 @@ export class Property {
     cascade: true,
   })
   floors!: PropertyFloor[];
+
+  @OneToMany(() => PropertyRoomTypePricing, (pricing) => pricing.property, {
+    cascade: true,
+  })
+  roomTypePricing!: PropertyRoomTypePricing[];
 
   @OneToMany(() => Lease, (lease) => lease.property)
   leases!: Lease[];

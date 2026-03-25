@@ -139,7 +139,7 @@ export default function PropertiesPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-blue-600">KES {property.monthlyRent.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-blue-600">KES {property.monthlyRent ? property.monthlyRent.toLocaleString() : 'N/A'}</p>
                     <p className="text-xs text-gray-500">Monthly Rent</p>
                   </div>
                 </div>
@@ -215,7 +215,7 @@ export default function PropertiesPage() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Monthly Rent:</span>
-                          <span className="font-medium">KES {property.monthlyRent.toLocaleString()}</span>
+                          <span className="font-medium">KES {property.monthlyRent ? property.monthlyRent.toLocaleString() : 'N/A'}</span>
                         </div>
                       </div>
                     </div>

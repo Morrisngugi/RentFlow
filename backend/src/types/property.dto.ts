@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsNumber, IsEmail, MinLength, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsEmail, MinLength, IsArray, ValidateNested, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class PropertyFloorDTO {
@@ -20,6 +20,32 @@ export class PropertyUnitDTO {
   @IsNotEmpty()
   roomType!: string; // e.g., "Bed-sitter", "1-Bedroom", "2-Bedroom"
 }
+
+export class RoomTypePricingDTO {
+  @IsString()
+  @IsNotEmpty()
+  roomType!: string; // e.g., "Bed-sitter", "1-Bedroom", "2-Bedroom", "3-Bedroom", "4-Bedroom"
+
+  @IsString()
+  @IsOptional()
+  billingFrequency?: string; // 'monthly' for rental (default), 'daily'/'weekly' for airbnb
+
+  @IsNumber()
+  @IsNotEmpty()
+  price!: number; // Rate (monthly/daily/weekly depending on billingFrequency)
+
+  // For Rental properties only - optional additional charges
+  @IsNumber()
+  @IsOptional()
+  garbageAmount?: number; // Garbage fee per month
+
+  @IsNumber()
+  @IsOptional()
+  waterUnitCost?: number; // Water cost per unit
+
+  // Note: Security deposit is input per tenant, not at property level
+}
+
 
 export class LandlordDTO {
   @IsString()
@@ -68,10 +94,11 @@ export class CreatePropertyRequest {
   country?: string;
 
   @IsNumber()
-  @IsNotEmpty()
-  monthlyRent!: number;
+  @IsOptional()
+  monthlyRent?: number;
 
   @IsNumber()
+  @IsOptional()
   depositAmount?: number;
 
   @IsString()
@@ -79,6 +106,14 @@ export class CreatePropertyRequest {
 
   @IsString()
   propertyType?: string; // 'apartment', 'house', 'commercial'
+
+  @IsString()
+  @IsOptional()
+  propertyModel?: string; // 'rental' or 'airbnb' (default: rental)
+
+  @IsNumber()
+  @IsOptional()
+  securityFee?: number; // Optional monthly fee for security personnel (watchmen/guards). Only for rental properties.
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -109,6 +144,10 @@ export class CreatePropertyRequest {
   @MinLength(8)
   @IsNotEmpty()
   landlordPassword!: string;
+
+  // Room type pricing: { "1-Bedroom": 25000, "2-Bedroom": 35000 }
+  @IsOptional()
+  roomTypePrices?: Record<string, number>;
 }
 
 export class UpdatePropertyRequest {

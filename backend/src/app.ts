@@ -14,6 +14,7 @@ import propertyRoutes from './routes/properties';
 import landlordRoutes from './routes/landlords';
 import tenantRoutes from './routes/tenants';
 import unitTenantRoutes from './routes/unit-tenants';
+import roomTypePricingRoutes from './routes/room-type-pricing';
 
 const app: Express = express();
 
@@ -51,6 +52,7 @@ app.get('/api/v1', (req: Request, res: Response) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/agents', agentRoutes);
 app.use('/api/v1/properties', propertyRoutes);
+app.use('/api/v1/properties', roomTypePricingRoutes);
 app.use('/api/v1/properties', unitTenantRoutes);
 app.use('/api/v1/landlords', landlordRoutes);
 app.use('/api/v1/tenants', tenantRoutes);

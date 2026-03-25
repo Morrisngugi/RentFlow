@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { In } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
@@ -7,6 +8,7 @@ import { AppDataSource } from '../config/database';
 import { Property } from '../entities/property/Property';
 import { PropertyFloor } from '../entities/property/PropertyFloor';
 import { PropertyUnit } from '../entities/property/PropertyUnit';
+import { PropertyRoomTypePricing } from '../entities/property/PropertyRoomTypePricing';
 import { User } from '../entities/User';
 import { LandlordProfile } from '../entities/profile/LandlordProfile';
 import bcrypt from 'bcrypt';
@@ -59,6 +61,7 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response) 
     const floorRepo = AppDataSource.getRepository(PropertyFloor);
     const unitRepo = AppDataSource.getRepository(PropertyUnit);
     const landlordProfileRepo = AppDataSource.getRepository(LandlordProfile);
+    const roomTypePricingRepo = AppDataSource.getRepository(PropertyRoomTypePricing);
 
     // Check if landlord with email already exists
     let landlord = await userRepo.findOne({ where: { email: req.body.landlordEmail } });
@@ -101,10 +104,12 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response) 
       city: req.body.city,
       postalCode: req.body.postalCode || '',
       country: req.body.country || 'Kenya',
-      monthlyRent: req.body.monthlyRent,
-      depositAmount: req.body.depositAmount || 0,
+      monthlyRent: req.body.monthlyRent || null,
+      depositAmount: req.body.depositAmount || null,
       description: req.body.description || '',
       propertyType: req.body.propertyType || 'house',
+      propertyModel: req.body.propertyModel || 'rental', // 'rental' or 'airbnb'
+      securityFee: (req.body.propertyModel === 'rental' || !req.body.propertyModel) ? (req.body.securityFee || null) : null, // Only for rental properties
       isAvailable: true,
     });
 
@@ -140,6 +145,25 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response) 
       await unitRepo.save(unitsToSave);
     }
 
+    // Create room type pricing if provided
+    const pricingSave: PropertyRoomTypePricing[] = [];
+    if (req.body.roomTypePrices && Object.keys(req.body.roomTypePrices).length > 0) {
+      for (const [roomType, price] of Object.entries(req.body.roomTypePrices)) {
+        const pricing = roomTypePricingRepo.create({
+          propertyId: savedProperty.id,
+          roomType,
+          price: price as number,
+          billingFrequency: 'monthly',
+        });
+        pricingSave.push(pricing);
+      }
+      await roomTypePricingRepo.save(pricingSave);
+      console.log('✅ Room type pricing created:', {
+        propertyId: savedProperty.id,
+        pricing: req.body.roomTypePrices,
+      });
+    }
+
     console.log('✅ Property created:', {
       id: savedProperty.id,
       name: savedProperty.name,
@@ -147,15 +171,31 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response) 
       floorsCount: req.body.floors.length,
     });
 
+    // Get all units to show available room types
+    const floors = await floorRepo.find({ where: { propertyId: savedProperty.id } });
+    const floorIds = floors.map(f => f.id);
+    const allUnits = floorIds.length > 0 
+      ? await unitRepo.find({ 
+          where: { floorId: In(floorIds) }
+        })
+      : [];
+    const roomTypes = [...new Set(unitsToSave.map(u => u.roomType))]; // Unique room types from created units
+
     return res.status(201).json({
-      message: 'Property created successfully',
+      message: 'Property created successfully with room type pricing!',
       data: {
         id: savedProperty.id,
         name: savedProperty.name,
         address: savedProperty.address,
         city: savedProperty.city,
+        propertyType: savedProperty.propertyType,
+        propertyModel: savedProperty.propertyModel,
         monthlyRent: savedProperty.monthlyRent,
+        securityFee: savedProperty.securityFee, // Monthly security fee if applicable
         floorsCount: req.body.floors.length,
+        unitsCount: unitsToSave.length,
+        availableRoomTypes: roomTypes,
+        roomTypePrices: req.body.roomTypePrices || {},
         landlord: {
           id: landlord.id,
           name: `${landlord.firstName} ${landlord.lastName}`,

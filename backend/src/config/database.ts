@@ -9,6 +9,7 @@ import { AgentProfile } from '../entities/profile/AgentProfile';
 import { LandlordProfile } from '../entities/profile/LandlordProfile';
 import { AgentLandlordAssignment } from '../entities/AgentLandlordAssignment';
 import { Property } from '../entities/property/Property';
+import { PropertyRoomTypePricing } from '../entities/property/PropertyRoomTypePricing';
 import { PropertyImage } from '../entities/property/PropertyImage';
 import { PropertyFloor } from '../entities/property/PropertyFloor';
 import { PropertyUnit } from '../entities/property/PropertyUnit';
@@ -42,6 +43,7 @@ export const AppDataSource = new DataSource({
     LandlordProfile,
     AgentLandlordAssignment,
     Property,
+    PropertyRoomTypePricing,
     PropertyImage,
     PropertyFloor,
     PropertyUnit,

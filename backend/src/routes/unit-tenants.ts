@@ -6,6 +6,8 @@ import { TenantProfile } from '../entities/profile/TenantProfile';
 import { Lease } from '../entities/lease/Lease';
 import { LeaseTerm } from '../entities/lease/LeaseTerm';
 import { Property } from '../entities/property/Property';
+import { PropertyRoomTypePricing } from '../entities/property/PropertyRoomTypePricing';
+import { RentSchedule } from '../entities/payment/RentSchedule';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import bcrypt from 'bcrypt';
 
@@ -206,22 +208,46 @@ router.post(
 );
 
 // POST /api/v1/properties/:propertyId/units/:unitId/assign-tenant
-// Assign existing tenant to unit
+// Assign existing tenant to unit with automatic rent fetching based on room type
 router.post(
   '/:propertyId/units/:unitId/assign-tenant',
   authenticate,
   verifyUnit,
   async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { tenantId } = req.body;
-      const { unitId } = req.params;
+      const {
+        tenantId,
+        monthlyRent,
+        garbageAmount,
+        waterUnitCost,
+        securityDeposit, // Manual input - not from property pricing
+        rentDueDay,
+        startDate,
+      } = req.body;
+      const { propertyId, unitId } = req.params;
 
+      // Validate required fields
       if (!tenantId) {
-        return res.status(400).json({ error: 'tenantId is required' });
+        return res.status(400).json({
+          error: 'tenantId is required',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+
+      if (!rentDueDay) {
+        return res.status(400).json({
+          error: 'rentDueDay is required',
+          code: 'VALIDATION_ERROR',
+        });
       }
 
       const userRepo = AppDataSource.getRepository(User);
       const unitRepo = AppDataSource.getRepository(PropertyUnit);
+      const leaseRepo = AppDataSource.getRepository(Lease);
+      const leaseTermRepo = AppDataSource.getRepository(LeaseTerm);
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const roomTypePricingRepo = AppDataSource.getRepository(PropertyRoomTypePricing);
+      const rentScheduleRepo = AppDataSource.getRepository(RentSchedule);
 
       // Verify tenant exists and is a tenant role
       const tenant = await userRepo.findOne({
@@ -229,7 +255,10 @@ router.post(
       });
 
       if (!tenant) {
-        return res.status(404).json({ error: 'Tenant not found' });
+        return res.status(404).json({
+          error: 'Tenant not found',
+          code: 'TENANT_NOT_FOUND',
+        });
       }
 
       // Check if tenant is already assigned to another unit
@@ -240,25 +269,140 @@ router.post(
       if (existingAssignment && existingAssignment.id !== unitId) {
         return res.status(400).json({
           error: 'Tenant is already assigned to another unit',
+          code: 'TENANT_ALREADY_ASSIGNED',
         });
       }
 
-      // Assign tenant to unit
+      // Get property
+      const property = await propertyRepo.findOne({ where: { id: propertyId } });
+      if (!property) {
+        return res.status(404).json({
+          error: 'Property not found',
+          code: 'PROPERTY_NOT_FOUND',
+        });
+      }
+
+      // Get unit with room type
       const unit = (req as any).unit;
+
+      // Fetch room type pricing for automatic rent assignment
+      let rentTerms = {
+        monthlyRent: monthlyRent,
+        garbageAmount: garbageAmount || 0,
+        waterUnitCost: waterUnitCost || 0,
+        securityDeposit: securityDeposit,
+      };
+
+      if (!monthlyRent) {
+        // Auto-fetch pricing based on room type
+        const roomPricing = await roomTypePricingRepo.findOne({
+          where: {
+            propertyId,
+            roomType: unit.roomType,
+          },
+        });
+
+        if (!roomPricing) {
+          return res.status(400).json({
+            error: `No pricing configured for room type "${unit.roomType}" in this property`,
+            code: 'NO_ROOM_TYPE_PRICING',
+            details: {
+              roomType: unit.roomType,
+              propertyId,
+            },
+          });
+        }
+
+        // Build rent terms based on property model
+        // For AirBnB: just the price, no additional charges
+        // For Rental: price + optional garbage and water costs
+        rentTerms = {
+          monthlyRent: parseFloat(roomPricing.price.toString()),
+          garbageAmount: property.propertyModel === 'rental' ? (roomPricing.garbageAmount ? parseFloat(roomPricing.garbageAmount.toString()) : 0) : 0,
+          waterUnitCost: property.propertyModel === 'rental' ? (roomPricing.waterUnitCost ? parseFloat(roomPricing.waterUnitCost.toString()) : 0) : 0,
+          securityDeposit: securityDeposit ? parseFloat(securityDeposit.toString()) : undefined, // Always manual input
+        };
+
+        // Store billing frequency for AirBnB response
+        (req as any).billingFrequency = roomPricing.billingFrequency;
+        (req as any).propertyModel = property.propertyModel;
+      }
+
+      // Assign tenant to unit
       unit.currentTenantId = tenantId;
       unit.status = 'occupied';
       unit.tenant = tenant;
-
       await unitRepo.save(unit);
 
-      res.json({
-        message: 'Tenant assigned successfully',
-        unit: {
-          id: unit.id,
-          unitNumber: unit.unitNumber,
-          roomType: unit.roomType,
-          status: unit.status,
-          currentTenantId: unit.currentTenantId,
+      // Get or create LeaseTerm for monthly leases
+      let leaseTerm = await leaseTermRepo.findOne({
+        where: { durationMonths: 1 },
+      });
+
+      if (!leaseTerm) {
+        leaseTerm = leaseTermRepo.create({
+          name: 'Monthly',
+          durationMonths: 1,
+          autoRenewal: true,
+          noticePeriodDays: 30,
+        });
+        await leaseTermRepo.save(leaseTerm);
+      }
+
+      // Create Lease record for ongoing monthly rental
+      const leaseStartDate = new Date(startDate || new Date());
+      const leaseEndDate = new Date(leaseStartDate);
+      leaseEndDate.setFullYear(leaseEndDate.getFullYear() + 1); // Default 1 year, but auto-renewal
+
+      const lease = leaseRepo.create({
+        propertyId,
+        tenantId,
+        landlordId: property.landlordId,
+        leaseTermId: leaseTerm.id,
+        monthlyRent: rentTerms.monthlyRent,
+        securityFee: property.securityFee || 0, // Auto-fetch from property
+        garbageAmount: rentTerms.garbageAmount,
+        waterUnitCost: rentTerms.waterUnitCost,
+        securityDeposit: rentTerms.securityDeposit,
+        depositPaid: false,
+        startDate: leaseStartDate,
+        endDate: leaseEndDate,
+        status: 'active',
+      });
+
+      await leaseRepo.save(lease);
+
+      // Create RentSchedule for recurring monthly payments
+      const dueDate = new Date(leaseStartDate);
+      dueDate.setDate(rentDueDay);
+      if (dueDate < leaseStartDate) {
+        dueDate.setMonth(dueDate.getMonth() + 1);
+      }
+
+      const rentSchedule = rentScheduleRepo.create({
+        leaseId: lease.id,
+        rentDueDay,
+        dueDate,
+      });
+
+      await rentScheduleRepo.save(rentSchedule);
+
+      return res.status(201).json({
+        message: 'Tenant assigned successfully with auto-fetched rent terms',
+        data: {
+          property: {
+            id: property.id,
+            name: property.name,
+            propertyModel: property.propertyModel, // 'rental' or 'airbnb'
+            billingFrequency: (req as any).billingFrequency || 'monthly',
+          },
+          unit: {
+            id: unit.id,
+            unitNumber: unit.unitNumber,
+            roomType: unit.roomType,
+            status: unit.status,
+            currentTenantId: unit.currentTenantId,
+          },
           tenant: {
             id: tenant.id,
             firstName: tenant.firstName,
@@ -266,11 +410,31 @@ router.post(
             email: tenant.email,
             phoneNumber: tenant.phoneNumber,
           },
+          lease: {
+            id: lease.id,
+            monthlyRent: lease.monthlyRent,
+            securityFee: lease.securityFee, // Monthly security fee for security personnel
+            garbageAmount: lease.garbageAmount,
+            waterUnitCost: lease.waterUnitCost,
+            securityDeposit: lease.securityDeposit, // One-time upfront deposit
+            startDate: lease.startDate,
+            endDate: lease.endDate,
+            status: lease.status,
+          },
+          rentSchedule: {
+            id: rentSchedule.id,
+            rentDueDay: rentSchedule.rentDueDay,
+            dueDate: rentSchedule.dueDate,
+          },
         },
       });
     } catch (error) {
       console.error('Error assigning tenant:', error);
-      res.status(500).json({ error: 'Failed to assign tenant' });
+      return res.status(500).json({
+        error: 'Failed to assign tenant',
+        code: 'ASSIGN_TENANT_ERROR',
+        details: error instanceof Error ? error.message : '',
+      });
     }
   }
 );

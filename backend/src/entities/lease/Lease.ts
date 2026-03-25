@@ -33,13 +33,16 @@ export class Lease {
   monthlyRent!: number;
 
   @Column({ type: 'numeric', default: 0 })
+  securityFee!: number; // Monthly security fee if property has security personnel
+
+  @Column({ type: 'numeric', default: 0 })
   garbageAmount!: number;
 
   @Column({ type: 'numeric', default: 0 })
   waterUnitCost!: number;
 
   @Column({ type: 'numeric', default: 0 })
-  securityDeposit!: number;
+  securityDeposit!: number; // One-time upfront deposit per tenant
 
   @Column({ type: 'boolean', default: false })
   depositPaid!: boolean;

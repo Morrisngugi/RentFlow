@@ -204,11 +204,11 @@ export default function PropertyDetailsPage() {
               </div>
               <div>
                 <p className="text-gray-600 text-sm">Monthly Rent</p>
-                <p className="font-medium text-gray-900">KES {property.monthlyRent.toLocaleString()}</p>
+                <p className="font-medium text-gray-900">KES {property.monthlyRent ? property.monthlyRent.toLocaleString() : 'N/A'}</p>
               </div>
               <div>
                 <p className="text-gray-600 text-sm">Deposit Amount</p>
-                <p className="font-medium text-gray-900">KES {property.depositAmount.toLocaleString()}</p>
+                <p className="font-medium text-gray-900">KES {property.depositAmount ? property.depositAmount.toLocaleString() : 'N/A'}</p>
               </div>
               <div>
                 <p className="text-gray-600 text-sm">Country</p>

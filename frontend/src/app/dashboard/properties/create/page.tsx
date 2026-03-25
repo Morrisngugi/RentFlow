@@ -21,8 +21,6 @@ interface FormData {
   city: string;
   postalCode: string;
   country: string;
-  monthlyRent: number;
-  depositAmount: number;
   description: string;
   propertyType: string;
   floors: Floor[];
@@ -33,6 +31,7 @@ interface FormData {
   landlordIdNumber: string;
   landlordPassword: string;
   confirmPassword: string;
+  roomTypePrices: { [roomType: string]: number };
 }
 
 export default function CreatePropertyPage() {
@@ -44,8 +43,6 @@ export default function CreatePropertyPage() {
     city: '',
     postalCode: '',
     country: 'Kenya',
-    monthlyRent: 0,
-    depositAmount: 0,
     description: '',
     propertyType: 'house',
     floors: [
@@ -63,6 +60,7 @@ export default function CreatePropertyPage() {
     landlordIdNumber: '',
     landlordPassword: '',
     confirmPassword: '',
+    roomTypePrices: {},
   });
 
   const [showLandlordPassword, setShowLandlordPassword] = useState(false);
@@ -72,7 +70,7 @@ export default function CreatePropertyPage() {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'monthlyRent' || name === 'depositAmount' ? parseFloat(value) || 0 : value,
+      [name]: value,
     }));
   };
 
@@ -166,10 +164,6 @@ export default function CreatePropertyPage() {
       toast.error('City is required');
       return false;
     }
-    if (formData.monthlyRent <= 0) {
-      toast.error('Monthly rent must be greater than 0');
-      return false;
-    }
     if (formData.floors.length === 0) {
       toast.error('Property must have at least one floor');
       return false;
@@ -199,6 +193,15 @@ export default function CreatePropertyPage() {
       return false;
     }
 
+    // Validate room type pricing
+    const uniqueRoomTypes = [...new Set(formData.floors.flatMap((f) => f.roomTypes))];
+    for (const roomType of uniqueRoomTypes) {
+      if (!formData.roomTypePrices[roomType] || formData.roomTypePrices[roomType] <= 0) {
+        toast.error(`Price is required for ${roomType}`);
+        return false;
+      }
+    }
+
     return true;
   };
 
@@ -224,8 +227,6 @@ export default function CreatePropertyPage() {
           city: formData.city,
           postalCode: formData.postalCode,
           country: formData.country,
-          monthlyRent: formData.monthlyRent,
-          depositAmount: formData.depositAmount,
           description: formData.description,
           propertyType: formData.propertyType,
           floors: formData.floors,
@@ -235,6 +236,7 @@ export default function CreatePropertyPage() {
           landlordPhone: formData.landlordPhone,
           landlordIdNumber: formData.landlordIdNumber,
           landlordPassword: formData.landlordPassword,
+          roomTypePrices: formData.roomTypePrices,
         }),
       });
 
@@ -260,6 +262,27 @@ export default function CreatePropertyPage() {
 
   const roomTypeOptions = ['Bed-sitter', '1-Bedroom', '2-Bedroom', '3-Bedroom', '4-Bedroom'];
 
+  const handleRoomTypePrice = (roomType: string, price: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      roomTypePrices: {
+        ...prev.roomTypePrices,
+        [roomType]: parseFloat(price) || 0,
+      },
+    }));
+  };
+
+  // Get unique room types from all floors
+  const getUniqueRoomTypes = () => {
+    const types = new Set<string>();
+    formData.floors.forEach((floor) => {
+      floor.roomTypes.forEach((roomType) => {
+        types.add(roomType);
+      });
+    });
+    return Array.from(types).sort();
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
@@ -278,6 +301,7 @@ export default function CreatePropertyPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Property Details</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Row 1: Property Name | Property Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Property Name *
@@ -310,7 +334,8 @@ export default function CreatePropertyPage() {
                 </select>
               </div>
 
-              <div className="md:col-span-2">
+              {/* Row 2: Street Address | Postal Code */}
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Street Address *
                 </label>
@@ -320,20 +345,6 @@ export default function CreatePropertyPage() {
                   value={formData.address}
                   onChange={handlePropertyChange}
                   placeholder="e.g., 123 Main Street"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  City *
-                </label>
-                <input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handlePropertyChange}
-                  placeholder="e.g., Nairobi"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -352,6 +363,7 @@ export default function CreatePropertyPage() {
                 />
               </div>
 
+              {/* Row 3: Country | City */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Country *
@@ -368,32 +380,19 @@ export default function CreatePropertyPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Monthly Rent *
+                  City *
                 </label>
                 <input
-                  type="number"
-                  name="monthlyRent"
-                  value={formData.monthlyRent || ''}
+                  type="text"
+                  name="city"
+                  value={formData.city}
                   onChange={handlePropertyChange}
-                  placeholder="0"
+                  placeholder="e.g., Nairobi"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Deposit Amount
-                </label>
-                <input
-                  type="number"
-                  name="depositAmount"
-                  value={formData.depositAmount || ''}
-                  onChange={handlePropertyChange}
-                  placeholder="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
+              {/* Row 4: Description (full width) */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Description
@@ -514,6 +513,41 @@ export default function CreatePropertyPage() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Room Type Pricing Section */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Room Type Pricing</h2>
+            <p className="text-gray-600 text-sm mb-4">Set the monthly rent for each room type in your property</p>
+
+            {getUniqueRoomTypes().length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {getUniqueRoomTypes().map((roomType) => (
+                  <div key={roomType}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {roomType} - Monthly Rent *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-gray-500">Ksh</span>
+                      <input
+                        type="number"
+                        value={formData.roomTypePrices[roomType] || ''}
+                        onChange={(e) => handleRoomTypePrice(roomType, e.target.value)}
+                        placeholder="0"
+                        min="0"
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  ⚠️ Add at least one floor and unit to define room types
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Landlord Information Section */}

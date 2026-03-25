@@ -26,10 +26,12 @@ async function validateRequest(data: any, dtoClass: any) {
  */
 router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('📋 Register request received:', JSON.stringify(req.body, null, 2));
     const errors = await validateRequest(req.body, RegisterRequest);
     if (errors.length > 0) {
       const messages = errors
         .flatMap((err) => Object.values(err.constraints || {}));
+      console.log('❌ Validation errors:', messages);
       return res.status(400).json({
         error: {
           status: 400,
