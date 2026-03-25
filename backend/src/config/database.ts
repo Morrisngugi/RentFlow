@@ -21,6 +21,8 @@ import { Payment } from '../entities/payment/Payment';
 import { Deposit } from '../entities/payment/Deposit';
 import { LateFee } from '../entities/payment/LateFee';
 import { RentSchedule } from '../entities/payment/RentSchedule';
+import { WaterMeterReading } from '../entities/payment/WaterMeterReading';
+import { MonthlyRentBreakdown } from '../entities/payment/MonthlyRentBreakdown';
 import { Complaint } from '../entities/complaint/Complaint';
 import { ComplaintAttachment } from '../entities/complaint/ComplaintAttachment';
 import { Notification } from '../entities/notification/Notification';
@@ -56,6 +58,8 @@ export const AppDataSource = new DataSource({
     Deposit,
     LateFee,
     RentSchedule,
+    WaterMeterReading,
+    MonthlyRentBreakdown,
     Complaint,
     ComplaintAttachment,
     Notification,
