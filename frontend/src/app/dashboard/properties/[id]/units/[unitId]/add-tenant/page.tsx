@@ -506,6 +506,13 @@ export default function AddTenantPage() {
           <div className="bg-white rounded-lg shadow-md p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Lease Details</h2>
 
+            {/* Info Box */}
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>💡 Billing Structure:</strong> First month includes only rent. From the second month onwards, security fee, garbage charges, and water charges (based on consumption) will be added to the rent invoice.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               {/* Monthly Rent */}
               <div>
@@ -558,6 +565,7 @@ export default function AddTenantPage() {
                   min="0"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+                <p className="text-xs text-gray-500 mt-1">💡 Payable from 2nd month onwards</p>
               </div>
 
               {/* Garbage Amount */}
@@ -572,6 +580,7 @@ export default function AddTenantPage() {
                   min="0"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+                <p className="text-xs text-gray-500 mt-1">💡 Payable from 2nd month onwards</p>
               </div>
 
               {/* Water Unit Cost */}
@@ -586,6 +595,7 @@ export default function AddTenantPage() {
                   min="0"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+                <p className="text-xs text-gray-500 mt-1">💡 Per unit (from 2nd month based on consumption)</p>
               </div>
 
               {/* Date Joined */}
