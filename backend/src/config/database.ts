@@ -16,6 +16,7 @@ import { PropertyUnit } from '../entities/property/PropertyUnit';
 import { Lease } from '../entities/lease/Lease';
 import { LeaseRenewal } from '../entities/lease/LeaseRenewal';
 import { LeaseTerm } from '../entities/lease/LeaseTerm';
+import { DepositBreakdown } from '../entities/lease/DepositBreakdown';
 import { Payment } from '../entities/payment/Payment';
 import { Deposit } from '../entities/payment/Deposit';
 import { LateFee } from '../entities/payment/LateFee';
@@ -50,6 +51,7 @@ export const AppDataSource = new DataSource({
     Lease,
     LeaseRenewal,
     LeaseTerm,
+    DepositBreakdown,
     Payment,
     Deposit,
     LateFee,

@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   OneToMany,
+  OneToOne,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -12,6 +13,7 @@ import { User } from '../User';
 import { LeaseTerm } from './LeaseTerm';
 import { Payment } from '../payment/Payment';
 import { LeaseRenewal } from './LeaseRenewal';
+import { DepositBreakdown } from './DepositBreakdown';
 
 @Entity('leases')
 export class Lease {
@@ -56,6 +58,9 @@ export class Lease {
   @Column({ type: 'date' })
   endDate!: Date;
 
+  @Column({ type: 'date', nullable: true })
+  rentDueDate!: Date;
+
   @Column({
     type: 'enum',
     enum: ['draft', 'active', 'expired', 'terminated'],
@@ -85,5 +90,11 @@ export class Lease {
 
   @OneToMany(() => LeaseRenewal, (renewal) => renewal.lease)
   renewals!: LeaseRenewal[];
+
+  @OneToOne(() => DepositBreakdown, (breakdown) => breakdown.lease, {
+    nullable: true,
+    cascade: true,
+  })
+  depositBreakdown!: DepositBreakdown;
 }
 

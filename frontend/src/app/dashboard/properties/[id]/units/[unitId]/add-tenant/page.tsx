@@ -3,19 +3,40 @@
 import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import Button from '@/components/common/Button';
 import { toast } from 'react-toastify';
 
 interface FormData {
+  // Personal Information
   firstName: string;
   lastName: string;
+  idNumber: string;
   email: string;
   phoneNumber: string;
+  nationality: string;
+  maritalStatus: string;
+  numberOfChildren: number;
+  occupation: string;
+  postalAddress: string;
+  nextOfKinName: string;
+  nextOfKinPhone: string;
+  nextOfKinRelationship: string;
+  
+  // Lease Details
   monthlyRent: number;
-  depositPaid: number;
+  securityFee: number;
+  garbageAmount: number;
+  waterUnitCost: number;
   dateJoined: string;
   leaseTermMonths: number;
+  rentDueDate: string;
   notes: string;
+  
+  // Deposit Breakdown
+  rentDeposit: number;
+  waterDeposit: number;
+  electricityDeposit: number;
+  otherDeposit: number;
+  otherDepositDescription: string;
 }
 
 export default function AddTenantPage() {
@@ -25,21 +46,35 @@ export default function AddTenantPage() {
 
   const [loading, setLoading] = useState(false);
   const [unitInfo, setUnitInfo] = useState<any>(null);
-
-  React.useEffect(() => {
-    console.log('Page params:', { params, propertyId, unitId });
-  }, [params, propertyId, unitId]);
+  const [autoRent, setAutoRent] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
+    idNumber: '',
     email: '',
     phoneNumber: '',
+    nationality: '',
+    maritalStatus: '',
+    numberOfChildren: 0,
+    occupation: '',
+    postalAddress: '',
+    nextOfKinName: '',
+    nextOfKinPhone: '',
+    nextOfKinRelationship: '',
     monthlyRent: 0,
-    depositPaid: 0,
+    securityFee: 0,
+    garbageAmount: 0,
+    waterUnitCost: 0,
     dateJoined: new Date().toISOString().split('T')[0],
     leaseTermMonths: 12,
+    rentDueDate: '',
     notes: '',
+    rentDeposit: 0,
+    waterDeposit: 0,
+    electricityDeposit: 0,
+    otherDeposit: 0,
+    otherDepositDescription: '',
   });
 
   // Fetch unit info on mount
@@ -48,17 +83,26 @@ export default function AddTenantPage() {
       try {
         const token = localStorage.getItem('token');
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/properties/${propertyId}/units/${unitId}/current-tenant`,
+          `${process.env.NEXT_PUBLIC_API_URL}/properties/${propertyId}`,
           {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
           }
         );
 
         if (response.ok) {
           const data = await response.json();
-          setUnitInfo(data);
+          const unit = data.units?.find((u: any) => u.id === unitId);
+          if (unit) {
+            setUnitInfo(unit);
+            // Auto-populate rent if available from room type pricing
+            if (unit.roomType && data.roomTypePrices?.[unit.roomType]) {
+              setFormData(prev => ({
+                ...prev,
+                monthlyRent: data.roomTypePrices[unit.roomType]
+              }));
+              setAutoRent(true);
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching unit info:', error);
@@ -70,15 +114,18 @@ export default function AddTenantPage() {
     }
   }, [propertyId, unitId]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
+    const numericFields = ['monthlyRent', 'securityFee', 'garbageAmount', 'waterUnitCost', 'leaseTermMonths', 'numberOfChildren', 'rentDeposit', 'waterDeposit', 'electricityDeposit', 'otherDeposit'];
+    
+    setFormData(prev => ({
       ...prev,
-      [name]: 
-        name === 'monthlyRent' || name === 'depositPaid' || name === 'leaseTermMonths'
-          ? parseFloat(value) || 0
-          : value,
+      [name]: numericFields.includes(name) ? (parseFloat(value) || 0) : value,
     }));
+  };
+
+  const calculateTotalDeposit = () => {
+    return (formData.rentDeposit || 0) + (formData.waterDeposit || 0) + (formData.electricityDeposit || 0) + (formData.otherDeposit || 0);
   };
 
   const validateForm = (): boolean => {
@@ -90,12 +137,16 @@ export default function AddTenantPage() {
       toast.error('Last name is required');
       return false;
     }
-    if (!formData.email.trim() || !formData.email.includes('@')) {
-      toast.error('Valid email is required');
+    if (!formData.idNumber.trim()) {
+      toast.error('ID Number is required');
       return false;
     }
     if (!formData.phoneNumber.trim()) {
       toast.error('Phone number is required');
+      return false;
+    }
+    if (!formData.nationality.trim()) {
+      toast.error('Nationality is required');
       return false;
     }
     if (formData.monthlyRent <= 0) {
@@ -120,8 +171,6 @@ export default function AddTenantPage() {
 
     try {
       const token = localStorage.getItem('token');
-      console.log('Submitting tenant form data:', formData);
-      console.log('API URL:', `${process.env.NEXT_PUBLIC_API_URL}/properties/${propertyId}/units/${unitId}/create-tenant`);
       
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/properties/${propertyId}/units/${unitId}/create-tenant`,
@@ -137,7 +186,6 @@ export default function AddTenantPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        console.error('Backend error response:', error);
         toast.error(error.error || 'Failed to create tenant');
         return;
       }
@@ -157,95 +205,220 @@ export default function AddTenantPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <Link href={`/dashboard/properties/${propertyId}`} className="text-blue-600 hover:text-blue-700 mb-4 inline-block">
             ← Back to Property
           </Link>
           <h1 className="text-3xl font-bold text-gray-900">Add New Tenant</h1>
-          <p className="text-gray-600 mt-2">Add tenant details and lease information</p>
+          <p className="text-gray-600 mt-2">
+            {unitInfo ? `Unit ${unitInfo.unitNumber} • ${unitInfo.roomType}` : 'Add comprehensive tenant details and lease information'}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Tenant Information Section */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Tenant Information</h2>
+          {/* ========== PERSONAL INFORMATION SECTION ========== */}
+          <div className="bg-white rounded-lg shadow-md p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Personal Information</h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* First Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  First Name *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
                 <input
                   type="text"
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleChange}
                   placeholder="e.g., John"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
+              {/* Last Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Last Name *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
                 <input
                   type="text"
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleChange}
-                  placeholder="e.g., Kariuki"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Doe"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address *
-                </label>
+              {/* ID Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">ID Number *</label>
+                <input
+                  type="text"
+                  name="idNumber"
+                  value={formData.idNumber}
+                  onChange={handleChange}
+                  placeholder="e.g., 12345678"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="e.g., john@example.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone Number *
-                </label>
+              {/* Phone Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
                 <input
                   type="tel"
                   name="phoneNumber"
                   value={formData.phoneNumber}
                   onChange={handleChange}
-                  placeholder="e.g., +254 722 123 456"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., +254701234567"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Nationality */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nationality *</label>
+                <input
+                  type="text"
+                  name="nationality"
+                  value={formData.nationality}
+                  onChange={handleChange}
+                  placeholder="e.g., Kenyan"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Marital Status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Marital Status</label>
+                <select
+                  name="maritalStatus"
+                  value={formData.maritalStatus}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select Status</option>
+                  <option value="Single">Single</option>
+                  <option value="Married">Married</option>
+                  <option value="Divorced">Divorced</option>
+                  <option value="Widowed">Widowed</option>
+                </select>
+              </div>
+
+              {/* Number of Children */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Number of Children</label>
+                <input
+                  type="number"
+                  name="numberOfChildren"
+                  value={formData.numberOfChildren || ''}
+                  onChange={handleChange}
+                  placeholder="e.g., 2"
+                  min="0"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Occupation */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Occupation</label>
+                <input
+                  type="text"
+                  name="occupation"
+                  value={formData.occupation}
+                  onChange={handleChange}
+                  placeholder="e.g., Engineer"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Postal Address */}
+              <div className="md:col-span-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Postal Address</label>
+                <textarea
+                  name="postalAddress"
+                  value={formData.postalAddress}
+                  onChange={handleChange}
+                  placeholder="Enter full postal address"
+                  rows={2}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
+          </div>
 
-            {/* Info Box */}
-            <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                💡 The tenant account will be created with password: <code className="bg-blue-100 px-2 py-1 rounded">tenant@123</code>
-              </p>
+          {/* ========== NEXT OF KIN SECTION ========== */}
+          <div className="bg-white rounded-lg shadow-md p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Next of Kin</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Next of Kin Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Next of Kin Name</label>
+                <input
+                  type="text"
+                  name="nextOfKinName"
+                  value={formData.nextOfKinName}
+                  onChange={handleChange}
+                  placeholder="e.g., Jane Doe"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Next of Kin Phone */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Next of Kin Phone</label>
+                <input
+                  type="tel"
+                  name="nextOfKinPhone"
+                  value={formData.nextOfKinPhone}
+                  onChange={handleChange}
+                  placeholder="e.g., +254701234567"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Next of Kin Relationship */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Relationship</label>
+                <select
+                  name="nextOfKinRelationship"
+                  value={formData.nextOfKinRelationship}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select Relationship</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Parent">Parent</option>
+                  <option value="Sibling">Sibling</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Lease Details Section */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Lease Details</h2>
+          {/* ========== LEASE DETAILS SECTION ========== */}
+          <div className="bg-white rounded-lg shadow-md p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Lease Details</h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {/* Monthly Rent */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Monthly Rent (KES) *
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Monthly Rent (KES) * {autoRent && <span className="text-xs text-green-600 font-semibold">(Auto-populated)</span>}
                 </label>
                 <input
                   type="number"
@@ -253,43 +426,68 @@ export default function AddTenantPage() {
                   value={formData.monthlyRent || ''}
                   onChange={handleChange}
                   placeholder="e.g., 25000"
-                  min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  min="0"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
+              {/* Security Fee */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Deposit Paid (KES)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Security Fee (KES)</label>
                 <input
                   type="number"
-                  name="depositPaid"
-                  value={formData.depositPaid || ''}
+                  name="securityFee"
+                  value={formData.securityFee || ''}
                   onChange={handleChange}
-                  placeholder="e.g., 50000"
+                  placeholder="e.g., 25000"
                   min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
+              {/* Garbage Amount */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date Joined *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Garbage Amount (KES)</label>
+                <input
+                  type="number"
+                  name="garbageAmount"
+                  value={formData.garbageAmount || ''}
+                  onChange={handleChange}
+                  placeholder="e.g., 1000"
+                  min="0"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Water Unit Cost */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Water Unit Cost (KES)</label>
+                <input
+                  type="number"
+                  name="waterUnitCost"
+                  value={formData.waterUnitCost || ''}
+                  onChange={handleChange}
+                  placeholder="e.g., 500"
+                  min="0"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Date Joined */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Date Joined</label>
                 <input
                   type="date"
                   name="dateJoined"
                   value={formData.dateJoined}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
+              {/* Lease Term Months */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Lease Term (Months) *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Lease Term (Months) *</label>
                 <input
                   type="number"
                   name="leaseTermMonths"
@@ -297,38 +495,163 @@ export default function AddTenantPage() {
                   onChange={handleChange}
                   placeholder="e.g., 12"
                   min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes
-                </label>
+              {/* Rent Due Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Rent Due Date</label>
+                <input
+                  type="date"
+                  name="rentDueDate"
+                  value={formData.rentDueDate}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Notes */}
+              <div className="md:col-span-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
                 <textarea
                   name="notes"
                   value={formData.notes}
                   onChange={handleChange}
-                  placeholder="Any additional notes about the tenant or lease..."
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Any additional notes about the lease..."
+                  rows={2}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
           </div>
 
-          {/* Form Actions */}
-          <div className="flex justify-between items-center">
+          {/* ========== DEPOSIT BREAKDOWN SECTION ========== */}
+          <div className="bg-white rounded-lg shadow-md p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Deposit Breakdown</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+              {/* Rent Deposit */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Rent Deposit (KES)</label>
+                <input
+                  type="number"
+                  name="rentDeposit"
+                  value={formData.rentDeposit || ''}
+                  onChange={handleChange}
+                  placeholder="e.g., 25000"
+                  min="0"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Water Deposit */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Water Deposit (KES)</label>
+                <input
+                  type="number"
+                  name="waterDeposit"
+                  value={formData.waterDeposit || ''}
+                  onChange={handleChange}
+                  placeholder="e.g., 5000"
+                  min="0"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Electricity Deposit */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Electricity Deposit (KES)</label>
+                <input
+                  type="number"
+                  name="electricityDeposit"
+                  value={formData.electricityDeposit || ''}
+                  onChange={handleChange}
+                  placeholder="e.g., 5000"
+                  min="0"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Other Deposit */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Other Deposit (KES)</label>
+                <input
+                  type="number"
+                  name="otherDeposit"
+                  value={formData.otherDeposit || ''}
+                  onChange={handleChange}
+                  placeholder="e.g., 2000"
+                  min="0"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Other Deposit Description */}
+              <div className="md:col-span-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Other Deposit Description</label>
+                <input
+                  type="text"
+                  name="otherDepositDescription"
+                  value={formData.otherDepositDescription}
+                  onChange={handleChange}
+                  placeholder="e.g., Key Replacement, Cleaning, etc."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* Total Deposit Summary Card */}
+            <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div>
+                  <p className="text-xs text-gray-600">Rent Deposit</p>
+                  <p className="text-lg font-bold text-gray-900">{formData.rentDeposit?.toLocaleString() || '0'} KES</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">Water Deposit</p>
+                  <p className="text-lg font-bold text-gray-900">{formData.waterDeposit?.toLocaleString() || '0'} KES</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">Electricity</p>
+                  <p className="text-lg font-bold text-gray-900">{formData.electricityDeposit?.toLocaleString() || '0'} KES</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">Other</p>
+                  <p className="text-lg font-bold text-gray-900">{formData.otherDeposit?.toLocaleString() || '0'} KES</p>
+                </div>
+                <div className="border-l-2 border-blue-300 pl-4">
+                  <p className="text-xs text-gray-600 font-semibold">TOTAL DEPOSIT</p>
+                  <p className="text-2xl font-bold text-blue-600">{calculateTotalDeposit().toLocaleString()} KES</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ========== FORM ACTIONS ========== */}
+          <div className="flex justify-between items-center gap-4">
             <Link href={`/dashboard/properties/${propertyId}`}>
-              <Button className="bg-gray-300 hover:bg-gray-400 text-gray-900">Cancel</Button>
+              <button
+                type="button"
+                className="px-8 py-3 bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold rounded-lg transition"
+              >
+                Cancel
+              </button>
             </Link>
-            <Button
+            <button
               type="submit"
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {loading ? 'Creating...' : 'Add Tenant'}
-            </Button>
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Creating Tenant...
+                </>
+              ) : (
+                'Create Tenant'
+              )}
+            </button>
           </div>
         </form>
       </div>
