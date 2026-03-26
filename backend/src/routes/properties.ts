@@ -285,7 +285,7 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
       const propertyRepo = AppDataSource.getRepository(Property);
       const property = await propertyRepo.findOne({
         where: { id: req.params.id, agentId: req.user.userId },
-        relations: ['landlord', 'floors', 'floors.units', 'roomTypePricing'],
+        relations: ['landlord', 'floors', 'floors.units', 'floors.units.tenant', 'roomTypePricing'],
       });
 
       if (!property) {
@@ -317,13 +317,24 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
             id: floor.id,
             floorNumber: floor.floorNumber,
             unitsPerFloor: floor.unitsPerFloor,
-            units: floor.units.map((unit) => ({
-              id: unit.id,
-              unitNumber: unit.unitNumber,
-              roomType: unit.roomType,
-              status: unit.status,
-              currentTenantId: unit.currentTenantId,
-            })),
+            units: floor.units.map((unit) => {
+              const unitData: any = {
+                id: unit.id,
+                unitNumber: unit.unitNumber,
+                roomType: unit.roomType,
+                status: unit.status,
+                currentTenantId: unit.currentTenantId,
+              };
+              // Include tenant info if occupied
+              if (unit.currentTenantId && unit.tenant) {
+                unitData.tenant = {
+                  id: unit.tenant.id,
+                  firstName: unit.tenant.firstName,
+                  lastName: unit.tenant.lastName,
+                };
+              }
+              return unitData;
+            }),
           })),
           roomTypePricings: property.roomTypePricing.map((pricing) => ({
             id: pricing.id,

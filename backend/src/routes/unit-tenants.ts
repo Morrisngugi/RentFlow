@@ -43,11 +43,11 @@ const verifyUnit = async (req: Request, res: Response, next: any) => {
     console.log('✅ Unit verified');
     next();
   } catch (error: any) {
-    if (error instanceof NotFoundError) {
-      throw error;
+    if (error instanceof NotFoundError || error instanceof DatabaseError) {
+      return next(error);
     }
     console.error('❌ Error verifying unit:', error.message);
-    throw new DatabaseError(error.message, 'verify_unit');
+    return next(new DatabaseError(error.message, 'verify_unit'));
   }
 };
 
@@ -101,6 +101,18 @@ router.post(
           received: { firstName, lastName, phoneNumber, monthlyRent },
         });
       }
+
+      // Validate enum values
+      const validMaritalStatuses = ['single', 'married', 'divorced', 'widowed'];
+      if (maritalStatus && !validMaritalStatuses.includes(maritalStatus.toLowerCase())) {
+        console.warn('❌ Invalid marital status:', maritalStatus);
+        throw new ValidationError('Invalid marital status value', {
+          received: maritalStatus,
+          valid: validMaritalStatuses,
+        });
+      }
+      // Normalize maritalStatus to lowercase
+      const normalizedMaritalStatus = maritalStatus ? maritalStatus.toLowerCase() : null;
 
       const userRepo = AppDataSource.getRepository(User);
       const unitRepo = AppDataSource.getRepository(PropertyUnit);
@@ -164,7 +176,7 @@ router.post(
         const tenantProfile = tenantProfileRepo.create({
           userId: newTenant.id,
           nationality: nationality || null,
-          maritalStatus: maritalStatus || null,
+          maritalStatus: normalizedMaritalStatus,
           numberOfChildren: numberOfChildren || 0,
           occupation: occupation || null,
           postalAddress: postalAddress || null,

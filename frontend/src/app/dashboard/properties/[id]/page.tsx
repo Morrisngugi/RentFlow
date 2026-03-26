@@ -15,6 +15,11 @@ interface Unit {
   roomType: string;
   status: 'vacant' | 'occupied' | 'maintenance';
   currentTenantId?: string;
+  tenant?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
 }
 
 interface Floor {
@@ -287,7 +292,13 @@ export default function PropertyDetailsPage() {
                     </div>
                     {unit.currentTenantId && (
                       <p className="text-xs opacity-75 mt-3">
-                        Tenant ID: {unit.currentTenantId.substring(0, 8)}...
+                        {unit.tenant ? (
+                          <Link href={`/dashboard/tenants/${unit.tenant.id}`} className="text-blue-600 hover:underline font-semibold">
+                            {unit.tenant.firstName} {unit.tenant.lastName}
+                          </Link>
+                        ) : (
+                          `Tenant ID: ${unit.currentTenantId.substring(0, 8)}...`
+                        )}
                       </p>
                     )}
                     

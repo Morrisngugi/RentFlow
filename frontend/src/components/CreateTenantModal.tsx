@@ -59,13 +59,33 @@ export default function CreateTenantModal({
         }
       );
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create tenant');
+        // Extract error message from API response
+        const errorMessage = result.error?.message || result.message || 'Failed to create tenant';
+        const errorDetails = result.error?.details || {};
+        
+        // Build detailed error message
+        let detailMsg = errorMessage;
+        if (Object.keys(errorDetails).length > 0) {
+          const details = Object.entries(errorDetails)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ');
+          detailMsg = `${errorMessage} (${details})`;
+        }
+        
+        console.error('❌ Tenant creation failed:', result);
+        toast.error(detailMsg);
+        return;
       }
 
-      const result = await response.json();
-      toast.success('Tenant created successfully!');
+      // Success response
+      console.log('✅ Tenant created successfully:', result);
+      const tenantName = `${result.data?.tenant?.firstName} ${result.data?.tenant?.lastName}`;
+      const successMsg = `✅ Tenant ${tenantName} created and linked to unit ${unitNumber}`;
+      
+      toast.success(successMsg);
       setFormData({ 
         firstName: '', 
         lastName: '', 
@@ -80,7 +100,8 @@ export default function CreateTenantModal({
       onTenantCreated();
       onClose();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create tenant';
+      const message = error instanceof Error ? error.message : 'An unexpected error occurred';
+      console.error('❌ Exception during tenant creation:', error);
       toast.error(message);
     } finally {
       setLoading(false);

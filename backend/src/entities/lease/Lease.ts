@@ -43,8 +43,8 @@ export class Lease {
   @Column({ type: 'numeric', default: 0 })
   waterUnitCost!: number;
 
-  @Column({ type: 'numeric', default: 0 })
-  securityDeposit!: number; // One-time upfront deposit per tenant
+  @Column({ type: 'numeric', nullable: true })
+  securityDeposit!: number | null; // One-time upfront deposit per tenant (nullable for properties that don't charge it)
 
   @Column({ type: 'boolean', default: false })
   depositPaid!: boolean;
