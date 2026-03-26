@@ -34,7 +34,7 @@ export default function PropertiesPage() {
   
   const searchParams = useSearchParams();
   const router = useRouter();
-  const landlordId = searchParams.get('landlordId');
+  const landlordId = searchParams?.get('landlordId') ?? null;
 
   useEffect(() => {
     fetchProperties();

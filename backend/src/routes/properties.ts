@@ -12,6 +12,13 @@ import { PropertyRoomTypePricing } from '../entities/property/PropertyRoomTypePr
 import { User } from '../entities/User';
 import { LandlordProfile } from '../entities/profile/LandlordProfile';
 import bcrypt from 'bcrypt';
+import {
+  ValidationError,
+  AuthenticationError,
+  NotFoundError,
+  ConflictError,
+  DatabaseError,
+} from '../errors/AppError';
 
 const router = Router();
 
@@ -29,31 +36,17 @@ async function validateRequest(data: any, dtoClass: any) {
  */
 router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('📋 Creating new property for agent:', req.user?.userId);
+    
     if (!req.user) {
-      return res.status(401).json({
-        error: {
-          status: 401,
-          message: 'Unauthorized',
-          code: 'UNAUTHORIZED',
-        },
-      });
+      throw new AuthenticationError('No user context found');
     }
 
     const errors = await validateRequest(req.body, CreatePropertyRequest);
     if (errors.length > 0) {
       const messages = errors.flatMap((err) => Object.values(err.constraints || {}));
-      console.error('❌ Property creation validation failed:', {
-        userId: req.user?.userId,
-        errors: messages,
-      });
-      return res.status(400).json({
-        error: {
-          status: 400,
-          message: 'Validation failed',
-          code: 'VALIDATION_ERROR',
-          details: messages,
-        },
-      });
+      console.warn('❌ Property validation errors:', messages);
+      throw new ValidationError('Property creation validation failed', { messages });
     }
 
     const propertyRepo = AppDataSource.getRepository(Property);
@@ -64,158 +57,164 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response) 
     const roomTypePricingRepo = AppDataSource.getRepository(PropertyRoomTypePricing);
 
     // Check if landlord with email already exists
+    console.log('🔍 Checking landlord email:', req.body.landlordEmail);
     let landlord = await userRepo.findOne({ where: { email: req.body.landlordEmail } });
 
     if (!landlord) {
-      // Create new landlord user
-      const hashedPassword = await bcrypt.hash(req.body.landlordPassword, 10);
-      landlord = userRepo.create({
-        email: req.body.landlordEmail,
-        firstName: req.body.landlordFirstName,
-        lastName: req.body.landlordLastName,
-        phoneNumber: req.body.landlordPhone,
-        idNumber: req.body.landlordIdNumber,
-        passwordHash: hashedPassword,
-        role: 'landlord',
-        isActive: true,
-      });
-      await userRepo.save(landlord);
+      try {
+        console.log('👤 Creating new landlord...');
+        const hashedPassword = await bcrypt.hash(req.body.landlordPassword, 10);
+        landlord = userRepo.create({
+          email: req.body.landlordEmail,
+          firstName: req.body.landlordFirstName,
+          lastName: req.body.landlordLastName,
+          phoneNumber: req.body.landlordPhone,
+          idNumber: req.body.landlordIdNumber,
+          passwordHash: hashedPassword,
+          role: 'landlord',
+          isActive: true,
+        });
+        await userRepo.save(landlord);
+        console.log('✅ Landlord created:', landlord.id);
 
-      // Create landlord profile
-      const landlordProfile = landlordProfileRepo.create({
-        userId: landlord.id,
-        physicalAddress: req.body.address || '',
-      });
-      await landlordProfileRepo.save(landlordProfile);
-
-      console.log('✅ New landlord created:', {
-        id: landlord.id,
-        email: landlord.email,
-        name: `${landlord.firstName} ${landlord.lastName}`,
-      });
+        // Create landlord profile
+        const landlordProfile = landlordProfileRepo.create({
+          userId: landlord.id,
+          physicalAddress: req.body.address || '',
+        });
+        await landlordProfileRepo.save(landlordProfile);
+        console.log('✅ Landlord profile created');
+      } catch (err: any) {
+        console.error('❌ Error creating landlord:', err.message);
+        throw new DatabaseError(err.message, 'landlord_creation', { email: req.body.landlordEmail });
+      }
+    } else {
+      console.log('✅ Using existing landlord:', landlord.id);
     }
 
     // Create property
-    const property = propertyRepo.create({
-      agentId: req.user.userId,
-      landlordId: landlord.id,
-      name: req.body.name,
-      address: req.body.address,
-      city: req.body.city,
-      postalCode: req.body.postalCode || '',
-      country: req.body.country || 'Kenya',
-      monthlyRent: req.body.monthlyRent || null,
-      depositAmount: req.body.depositAmount || null,
-      description: req.body.description || '',
-      propertyType: req.body.propertyType || 'house',
-      propertyModel: req.body.propertyModel || 'rental', // 'rental' or 'airbnb'
-      securityFee: (req.body.propertyModel === 'rental' || !req.body.propertyModel) ? (req.body.securityFee || null) : null, // Only for rental properties
-      isAvailable: true,
-    });
-
-    const savedProperty = await propertyRepo.save(property);
-
-    // Create floors and units
-    const floorsToSave: PropertyFloor[] = [];
-    const unitsToSave: PropertyUnit[] = [];
-
-    for (const floorDTO of req.body.floors) {
-      const floor = floorRepo.create({
-        propertyId: savedProperty.id,
-        floorNumber: floorDTO.floorNumber,
-        unitsPerFloor: floorDTO.unitsPerFloor,
-        description: floorDTO.description || '',
+    try {
+      console.log('🏢 Creating property:', req.body.name);
+      const property = propertyRepo.create({
+        agentId: req.user.userId,
+        landlordId: landlord.id,
+        name: req.body.name,
+        address: req.body.address,
+        city: req.body.city,
+        postalCode: req.body.postalCode || '',
+        country: req.body.country || 'Kenya',
+        monthlyRent: req.body.monthlyRent || null,
+        depositAmount: req.body.depositAmount || null,
+        description: req.body.description || '',
+        propertyType: req.body.propertyType || 'house',
+        propertyModel: req.body.propertyModel || 'rental',
+        securityFee: (req.body.propertyModel === 'rental' || !req.body.propertyModel) ? (req.body.securityFee || null) : null,
+        isAvailable: true,
       });
 
-      const savedFloor = await floorRepo.save(floor);
+      const savedProperty = await propertyRepo.save(property);
+      console.log('✅ Property created:', savedProperty.id);
 
-      // Create units for this floor
-      for (let unitNum = 1; unitNum <= floorDTO.unitsPerFloor; unitNum++) {
-        const unit = unitRepo.create({
-          floorId: savedFloor.id,
-          unitNumber: unitNum,
-          roomType: floorDTO.roomTypes?.[unitNum - 1] || '1-Bedroom', // Use provided room types or default
-          status: 'vacant',
-        });
-        unitsToSave.push(unit);
+      // Create floors and units
+      try {
+        console.log('🏗️ Creating floors and units...');
+        const unitsToSave: PropertyUnit[] = [];
+
+        for (const floorDTO of req.body.floors) {
+          const floor = floorRepo.create({
+            propertyId: savedProperty.id,
+            floorNumber: floorDTO.floorNumber,
+            unitsPerFloor: floorDTO.unitsPerFloor,
+            description: floorDTO.description || '',
+          });
+
+          const savedFloor = await floorRepo.save(floor);
+          console.log(`  ✓ Floor ${floorDTO.floorNumber} created`);
+
+          // Create units for this floor
+          for (let unitNum = 1; unitNum <= floorDTO.unitsPerFloor; unitNum++) {
+            const unit = unitRepo.create({
+              floorId: savedFloor.id,
+              unitNumber: unitNum,
+              roomType: floorDTO.roomTypes?.[unitNum - 1] || '1-Bedroom',
+              status: 'vacant',
+            });
+            unitsToSave.push(unit);
+          }
+        }
+
+        if (unitsToSave.length > 0) {
+          await unitRepo.save(unitsToSave);
+          console.log(`✅ Created ${unitsToSave.length} units`);
+        }
+      } catch (err: any) {
+        console.error('❌ Error creating floors/units:', err.message);
+        throw new DatabaseError(err.message, 'floors_units_creation');
       }
-    }
 
-    if (unitsToSave.length > 0) {
-      await unitRepo.save(unitsToSave);
-    }
-
-    // Create room type pricing if provided
-    const pricingSave: PropertyRoomTypePricing[] = [];
-    if (req.body.roomTypePrices && Object.keys(req.body.roomTypePrices).length > 0) {
-      for (const [roomType, price] of Object.entries(req.body.roomTypePrices)) {
-        const pricing = roomTypePricingRepo.create({
-          propertyId: savedProperty.id,
-          roomType,
-          price: price as number,
-          billingFrequency: 'monthly',
-        });
-        pricingSave.push(pricing);
+      // Create room type pricing if provided
+      try {
+        if (req.body.roomTypePrices && Object.keys(req.body.roomTypePrices).length > 0) {
+          console.log('💰 Creating room type pricing...');
+          const pricingSave: PropertyRoomTypePricing[] = [];
+          
+          for (const [roomType, price] of Object.entries(req.body.roomTypePrices)) {
+            const pricing = roomTypePricingRepo.create({
+              propertyId: savedProperty.id,
+              roomType,
+              price: price as number,
+              billingFrequency: 'monthly',
+            });
+            pricingSave.push(pricing);
+          }
+          
+          await roomTypePricingRepo.save(pricingSave);
+          console.log('✅ Room type pricing created');
+        }
+      } catch (err: any) {
+        console.error('❌ Error creating pricing:', err.message);
+        throw new DatabaseError(err.message, 'pricing_creation');
       }
-      await roomTypePricingRepo.save(pricingSave);
-      console.log('✅ Room type pricing created:', {
-        propertyId: savedProperty.id,
-        pricing: req.body.roomTypePrices,
-      });
-    }
 
-    console.log('✅ Property created:', {
-      id: savedProperty.id,
-      name: savedProperty.name,
-      landlordId: savedProperty.landlordId,
-      floorsCount: req.body.floors.length,
-    });
+      // Get all units to show available room types
+      const floors = await floorRepo.find({ where: { propertyId: savedProperty.id } });
+      const floorIds = floors.map(f => f.id);
+      const allUnits = floorIds.length > 0
+        ? await unitRepo.find({ where: { floorId: In(floorIds) } })
+        : [];
+      const roomTypes = [...new Set(allUnits.map(u => u.roomType))];
 
-    // Get all units to show available room types
-    const floors = await floorRepo.find({ where: { propertyId: savedProperty.id } });
-    const floorIds = floors.map(f => f.id);
-    const allUnits = floorIds.length > 0 
-      ? await unitRepo.find({ 
-          where: { floorId: In(floorIds) }
-        })
-      : [];
-    const roomTypes = [...new Set(unitsToSave.map(u => u.roomType))]; // Unique room types from created units
-
-    return res.status(201).json({
-      message: 'Property created successfully with room type pricing!',
-      data: {
-        id: savedProperty.id,
-        name: savedProperty.name,
-        address: savedProperty.address,
-        city: savedProperty.city,
-        propertyType: savedProperty.propertyType,
-        propertyModel: savedProperty.propertyModel,
-        monthlyRent: savedProperty.monthlyRent,
-        securityFee: savedProperty.securityFee, // Monthly security fee if applicable
-        floorsCount: req.body.floors.length,
-        unitsCount: unitsToSave.length,
-        availableRoomTypes: roomTypes,
-        roomTypePrices: req.body.roomTypePrices || {},
-        landlord: {
-          id: landlord.id,
-          name: `${landlord.firstName} ${landlord.lastName}`,
-          email: landlord.email,
+      console.log('✅ Property fully created:', savedProperty.id);
+      return res.status(201).json({
+        success: true,
+        message: 'Property created successfully',
+        data: {
+          id: savedProperty.id,
+          name: savedProperty.name,
+          address: savedProperty.address,
+          city: savedProperty.city,
+          propertyType: savedProperty.propertyType,
+          propertyModel: savedProperty.propertyModel,
+          floorsCount: req.body.floors.length,
+          unitsCount: allUnits.length,
+          availableRoomTypes: roomTypes,
+          landlord: {
+            id: landlord.id,
+            name: `${landlord.firstName} ${landlord.lastName}`,
+            email: landlord.email,
+          },
         },
-      },
-    });
+      });
+    } catch (err: any) {
+      console.error('❌ Error in property creation flow:', err.message);
+      throw new DatabaseError(err.message, 'property_creation');
+    }
   } catch (error: any) {
     console.error('❌ Property creation error:', {
-      userId: (req as AuthenticatedRequest).user?.userId,
+      userId: req.user?.userId,
       error: error.message,
-      stack: error.stack,
     });
-    return res.status(500).json({
-      error: {
-        status: 500,
-        message: error.message,
-        code: 'PROPERTY_CREATION_ERROR',
-      },
-    });
+    throw error;
   }
 });
 
@@ -225,50 +224,48 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response) 
  */
 router.get('/', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('📋 Listing properties for agent:', req.user?.userId);
+    
     if (!req.user) {
-      return res.status(401).json({
-        error: {
-          status: 401,
-          message: 'Unauthorized',
-          code: 'UNAUTHORIZED',
-        },
-      });
+      throw new AuthenticationError('No user context found');
     }
 
-    const propertyRepo = AppDataSource.getRepository(Property);
-    const properties = await propertyRepo.find({
-      where: { agentId: req.user.userId },
-      relations: ['landlord', 'floors', 'floors.units'],
-      order: { createdAt: 'DESC' },
-    });
+    try {
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const properties = await propertyRepo.find({
+        where: { agentId: req.user.userId },
+        relations: ['landlord', 'floors', 'floors.units'],
+        order: { createdAt: 'DESC' },
+      });
 
-    return res.status(200).json({
-      message: 'Properties retrieved successfully',
-      data: properties.map((prop) => ({
-        id: prop.id,
-        name: prop.name,
-        address: prop.address,
-        city: prop.city,
-        monthlyRent: prop.monthlyRent,
-        floorsCount: prop.floors?.length || 0,
-        totalUnits: prop.floors?.reduce((sum, floor) => sum + (floor.units?.length || 0), 0) || 0,
-        landlord: {
-          id: prop.landlord.id,
-          name: `${prop.landlord.firstName} ${prop.landlord.lastName}`,
-          email: prop.landlord.email,
-        },
-        createdAt: prop.createdAt,
-      })),
-    });
+      console.log(`✅ Retrieved ${properties.length} properties`);
+      return res.status(200).json({
+        success: true,
+        message: 'Properties retrieved successfully',
+        count: properties.length,
+        data: properties.map((prop) => ({
+          id: prop.id,
+          name: prop.name,
+          address: prop.address,
+          city: prop.city,
+          monthlyRent: prop.monthlyRent,
+          floorsCount: prop.floors?.length || 0,
+          totalUnits: prop.floors?.reduce((sum, floor) => sum + (floor.units?.length || 0), 0) || 0,
+          landlord: {
+            id: prop.landlord.id,
+            name: `${prop.landlord.firstName} ${prop.landlord.lastName}`,
+            email: prop.landlord.email,
+          },
+          createdAt: prop.createdAt,
+        })),
+      });
+    } catch (err: any) {
+      console.error('❌ Error querying properties:', err.message);
+      throw new DatabaseError(err.message, 'list_properties');
+    }
   } catch (error: any) {
     console.error('❌ Error listing properties:', error.message);
-    return res.status(500).json({
-      error: {
-        status: 500,
-        message: error.message,
-        code: 'LIST_PROPERTIES_ERROR',
-      },
-    });
+    throw error;
   }
 });
 
@@ -278,84 +275,75 @@ router.get('/', authenticate, async (req: AuthenticatedRequest, res: Response) =
  */
 router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('📋 Fetching property:', req.params.id);
+    
     if (!req.user) {
-      return res.status(401).json({
-        error: {
-          status: 401,
-          message: 'Unauthorized',
-          code: 'UNAUTHORIZED',
-        },
-      });
+      throw new AuthenticationError('No user context found');
     }
 
-    const propertyRepo = AppDataSource.getRepository(Property);
-    const property = await propertyRepo.findOne({
-      where: { id: req.params.id, agentId: req.user.userId },
-      relations: ['landlord', 'floors', 'floors.units', 'roomTypePricing'],
-    });
-
-    if (!property) {
-      return res.status(404).json({
-        error: {
-          status: 404,
-          message: 'Property not found',
-          code: 'PROPERTY_NOT_FOUND',
-        },
+    try {
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const property = await propertyRepo.findOne({
+        where: { id: req.params.id, agentId: req.user.userId },
+        relations: ['landlord', 'floors', 'floors.units', 'roomTypePricing'],
       });
-    }
 
-    return res.status(200).json({
-      message: 'Property retrieved successfully',
-      data: {
-        id: property.id,
-        name: property.name,
-        address: property.address,
-        city: property.city,
-        postalCode: property.postalCode,
-        country: property.country,
-        description: property.description,
-        monthlyRent: property.monthlyRent,
-        depositAmount: property.depositAmount,
-        propertyType: property.propertyType,
-        landlord: property.landlord ? {
-          id: property.landlord.id,
-          firstName: property.landlord.firstName,
-          lastName: property.landlord.lastName,
-          email: property.landlord.email,
-        } : null,
-        floors: property.floors.map((floor) => ({
-          id: floor.id,
-          floorNumber: floor.floorNumber,
-          unitsPerFloor: floor.unitsPerFloor,
-          units: floor.units.map((unit) => ({
-            id: unit.id,
-            unitNumber: unit.unitNumber,
-            roomType: unit.roomType,
-            status: unit.status,
-            currentTenantId: unit.currentTenantId,
+      if (!property) {
+        throw new NotFoundError('Property', { propertyId: req.params.id });
+      }
+
+      console.log('✅ Property fetched:', property.id);
+      return res.status(200).json({
+        success: true,
+        message: 'Property retrieved successfully',
+        data: {
+          id: property.id,
+          name: property.name,
+          address: property.address,
+          city: property.city,
+          postalCode: property.postalCode,
+          country: property.country,
+          description: property.description,
+          monthlyRent: property.monthlyRent,
+          depositAmount: property.depositAmount,
+          propertyType: property.propertyType,
+          landlord: property.landlord ? {
+            id: property.landlord.id,
+            firstName: property.landlord.firstName,
+            lastName: property.landlord.lastName,
+            email: property.landlord.email,
+          } : null,
+          floors: property.floors.map((floor) => ({
+            id: floor.id,
+            floorNumber: floor.floorNumber,
+            unitsPerFloor: floor.unitsPerFloor,
+            units: floor.units.map((unit) => ({
+              id: unit.id,
+              unitNumber: unit.unitNumber,
+              roomType: unit.roomType,
+              status: unit.status,
+              currentTenantId: unit.currentTenantId,
+            })),
           })),
-        })),
-        roomTypePricings: property.roomTypePricing.map((pricing) => ({
-          id: pricing.id,
-          roomType: pricing.roomType,
-          billingFrequency: pricing.billingFrequency,
-          price: pricing.price,
-          garbageAmount: pricing.garbageAmount,
-          waterUnitCost: pricing.waterUnitCost,
-        })),
-        createdAt: property.createdAt,
-        updatedAt: property.updatedAt,
-      },
-    });
+          roomTypePricings: property.roomTypePricing.map((pricing) => ({
+            id: pricing.id,
+            roomType: pricing.roomType,
+            billingFrequency: pricing.billingFrequency,
+            price: pricing.price,
+            garbageAmount: pricing.garbageAmount,
+            waterUnitCost: pricing.waterUnitCost,
+          })),
+          createdAt: property.createdAt,
+          updatedAt: property.updatedAt,
+        },
+      });
+    } catch (err: any) {
+      console.error('❌ Error fetching property:', err.message);
+      throw new DatabaseError(err.message, 'fetch_property');
+    }
   } catch (error: any) {
-    console.error('❌ Error fetching property:', error.message);
-    return res.status(500).json({
-      error: {
-        status: 500,
-        message: error.message,
-        code: 'GET_PROPERTY_ERROR',
-      },
-    });
+    console.error('❌ Get property error:', error.message);
+    throw error;
   }
 });
 
@@ -365,69 +353,52 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
  */
 router.put('/:id', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('📋 Updating property:', req.params.id);
+    
     if (!req.user) {
-      return res.status(401).json({
-        error: {
-          status: 401,
-          message: 'Unauthorized',
-          code: 'UNAUTHORIZED',
-        },
-      });
+      throw new AuthenticationError('No user context found');
     }
 
     const errors = await validateRequest(req.body, UpdatePropertyRequest);
     if (errors.length > 0) {
       const messages = errors.flatMap((err) => Object.values(err.constraints || {}));
-      return res.status(400).json({
-        error: {
-          status: 400,
-          message: 'Validation failed',
-          code: 'VALIDATION_ERROR',
-          details: messages,
-        },
-      });
+      console.warn('❌ Update validation errors:', messages);
+      throw new ValidationError('Property update validation failed', { messages });
     }
 
-    const propertyRepo = AppDataSource.getRepository(Property);
-    const property = await propertyRepo.findOne({
-      where: { id: req.params.id, agentId: req.user.userId },
-      relations: ['landlord', 'floors', 'floors.units'],
-    });
+    try {
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const property = await propertyRepo.findOne({
+        where: { id: req.params.id, agentId: req.user.userId },
+        relations: ['landlord', 'floors', 'floors.units'],
+      });
 
-    if (!property) {
-      return res.status(404).json({
-        error: {
-          status: 404,
-          message: 'Property not found',
-          code: 'PROPERTY_NOT_FOUND',
+      if (!property) {
+        throw new NotFoundError('Property', { propertyId: req.params.id });
+      }
+
+      console.log('✏️ Applying updates...');
+      Object.assign(property, req.body);
+      await propertyRepo.save(property);
+
+      console.log('✅ Property updated:', property.id);
+      return res.status(200).json({
+        success: true,
+        message: 'Property updated successfully',
+        data: {
+          id: property.id,
+          name: property.name,
+          address: property.address,
+          monthlyRent: property.monthlyRent,
         },
       });
+    } catch (err: any) {
+      console.error('❌ Error updating property:', err.message);
+      throw new DatabaseError(err.message, 'update_property');
     }
-
-    // Update only provided fields
-    Object.assign(property, req.body);
-    await propertyRepo.save(property);
-
-    console.log('✅ Property updated:', { id: property.id });
-
-    return res.status(200).json({
-      message: 'Property updated successfully',
-      data: {
-        id: property.id,
-        name: property.name,
-        address: property.address,
-        monthlyRent: property.monthlyRent,
-      },
-    });
   } catch (error: any) {
-    console.error('❌ Error updating property:', error.message);
-    return res.status(500).json({
-      error: {
-        status: 500,
-        message: error.message,
-        code: 'UPDATE_PROPERTY_ERROR',
-      },
-    });
+    console.error('❌ Update property error:', error.message);
+    throw error;
   }
 });
 
@@ -437,47 +408,37 @@ router.put('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
  */
 router.delete('/:id', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('📋 Deleting property:', req.params.id);
+    
     if (!req.user) {
-      return res.status(401).json({
-        error: {
-          status: 401,
-          message: 'Unauthorized',
-          code: 'UNAUTHORIZED',
-        },
-      });
+      throw new AuthenticationError('No user context found');
     }
 
-    const propertyRepo = AppDataSource.getRepository(Property);
-    const property = await propertyRepo.findOne({
-      where: { id: req.params.id, agentId: req.user.userId },
-    });
-
-    if (!property) {
-      return res.status(404).json({
-        error: {
-          status: 404,
-          message: 'Property not found',
-          code: 'PROPERTY_NOT_FOUND',
-        },
+    try {
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const property = await propertyRepo.findOne({
+        where: { id: req.params.id, agentId: req.user.userId },
       });
+
+      if (!property) {
+        throw new NotFoundError('Property', { propertyId: req.params.id });
+      }
+
+      console.log('🗑️ Removing property...');
+      await propertyRepo.remove(property);
+
+      console.log('✅ Property deleted:', req.params.id);
+      return res.status(200).json({
+        success: true,
+        message: 'Property deleted successfully',
+      });
+    } catch (err: any) {
+      console.error('❌ Error deleting property:', err.message);
+      throw new DatabaseError(err.message, 'delete_property');
     }
-
-    await propertyRepo.remove(property);
-
-    console.log('✅ Property deleted:', { id: req.params.id });
-
-    return res.status(200).json({
-      message: 'Property deleted successfully',
-    });
   } catch (error: any) {
-    console.error('❌ Error deleting property:', error.message);
-    return res.status(500).json({
-      error: {
-        status: 500,
-        message: error.message,
-        code: 'DELETE_PROPERTY_ERROR',
-      },
-    });
+    console.error('❌ Delete property error:', error.message);
+    throw error;
   }
 });
 
