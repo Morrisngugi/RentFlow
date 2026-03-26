@@ -167,9 +167,13 @@ export default function LandlordsPage() {
                   <td className="px-6 py-4 text-sm text-gray-600">{landlord.email}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{landlord.phone}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full">
+                    <button
+                      onClick={() => router.push(`/dashboard/properties?landlordId=${landlord.id}`)}
+                      className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full hover:bg-blue-200 transition cursor-pointer font-semibold"
+                      title="Click to view this landlord's properties"
+                    >
                       {landlord.propertiesCount}
-                    </span>
+                    </button>
                   </td>
                   <td className="px-6 py-4 text-sm font-semibold text-gray-900 text-right">
                     ${landlord.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}

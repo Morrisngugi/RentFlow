@@ -72,10 +72,15 @@ router.post(
       } = req.body;
       const { propertyId, unitId } = req.params;
 
+      console.log('📋 Received create-tenant request:', { firstName, lastName, email, phoneNumber, monthlyRent });
+
       // Validate required fields
       if (!firstName || !lastName || !phoneNumber || !monthlyRent) {
+        console.warn('❌ Missing required fields:', { firstName, lastName, phoneNumber, monthlyRent });
         return res.status(400).json({
-          error: 'Missing required fields: firstName, lastName, phoneNumber, monthlyRent',
+          error: 'Missing required fields',
+          details: 'firstName, lastName, phoneNumber, and monthlyRent are required',
+          received: { firstName, lastName, phoneNumber, monthlyRent }
         });
       }
 
@@ -89,162 +94,255 @@ router.post(
 
       // Check if email already exists
       if (email) {
-        const existingUserByEmail = await userRepo.findOne({ where: { email } });
-        if (existingUserByEmail) {
-          return res.status(400).json({ error: 'Email already registered' });
+        try {
+          console.log('🔍 Checking if email exists:', email);
+          const existingUserByEmail = await userRepo.findOne({ where: { email } });
+          if (existingUserByEmail) {
+            console.warn('❌ Email already registered:', email);
+            return res.status(400).json({ error: 'Email already registered' });
+          }
+        } catch (err) {
+          console.error('❌ Error checking email:', err);
+          throw new Error(`Failed to check email existence: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
       }
 
       // Check if idNumber already exists
       if (idNumber) {
-        const existingUserById = await userRepo.findOne({ where: { idNumber } });
-        if (existingUserById) {
-          return res.status(400).json({ error: 'ID Number already registered' });
+        try {
+          console.log('🔍 Checking if ID already exists:', idNumber);
+          const existingUserById = await userRepo.findOne({ where: { idNumber } });
+          if (existingUserById) {
+            console.warn('❌ ID Number already registered:', idNumber);
+            return res.status(400).json({ error: 'ID Number already registered' });
+          }
+        } catch (err) {
+          console.error('❌ Error checking ID:', err);
+          throw new Error(`Failed to check ID existence: ${err instanceof Error ? err.message : 'Unknown error'}`);
         }
       }
 
       // Get property
-      const property = await propertyRepo.findOne({ where: { id: propertyId } });
-      if (!property) {
-        return res.status(404).json({ error: 'Property not found' });
+      let property;
+      try {
+        console.log('🔍 Fetching property:', propertyId);
+        property = await propertyRepo.findOne({ where: { id: propertyId } });
+        if (!property) {
+          console.warn('❌ Property not found:', propertyId);
+          return res.status(404).json({ error: 'Property not found' });
+        }
+        console.log('✅ Property found:', { propertyId, landlordId: property.landlordId });
+      } catch (err) {
+        console.error('❌ Error fetching property:', err);
+        throw new Error(`Failed to fetch property: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
 
       // Create tenant account
-      const hashedPassword = await bcrypt.hash('tenant@123', 10);
-      const newTenant = userRepo.create({
-        firstName,
-        lastName,
-        email: email || null,
-        phoneNumber,
-        idNumber: idNumber || `TENANT-${Date.now()}`,
-        passwordHash: hashedPassword,
-        role: 'tenant',
-        isActive: true,
-      });
+      let newTenant;
+      try {
+        console.log('🔐 Hashing password...');
+        const hashedPassword = await bcrypt.hash('tenant@123', 10);
+        console.log('👤 Creating tenant user:', { firstName, lastName, email, phoneNumber });
+        
+        newTenant = userRepo.create({
+          firstName,
+          lastName,
+          email: email || null,
+          phoneNumber,
+          idNumber: idNumber || `TENANT-${Date.now()}`,
+          passwordHash: hashedPassword,
+          role: 'tenant',
+          isActive: true,
+        });
 
-      await userRepo.save(newTenant);
+        await userRepo.save(newTenant);
+        console.log('✅ Tenant user created:', newTenant.id);
+      } catch (err) {
+        console.error('❌ Error creating tenant user:', err);
+        throw new Error(`Failed to create tenant account: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
 
-      // Create tenant profile with all details
-      const tenantProfile = tenantProfileRepo.create({
-        userId: newTenant.id,
-        nationality: nationality || null,
-        maritalStatus: maritalStatus || null,
-        numberOfChildren: numberOfChildren || 0,
-        occupation: occupation || null,
-        postalAddress: postalAddress || null,
-        nextOfKinName: nextOfKinName || null,
-        nextOfKinPhone: nextOfKinPhone || null,
-        nextOfKinRelationship: nextOfKinRelationship || null,
-      });
+      // Create tenant profile
+      try {
+        console.log('📝 Creating tenant profile...');
+        const tenantProfile = tenantProfileRepo.create({
+          userId: newTenant.id,
+          nationality: nationality || null,
+          maritalStatus: maritalStatus || null,
+          numberOfChildren: numberOfChildren || 0,
+          occupation: occupation || null,
+          postalAddress: postalAddress || null,
+          nextOfKinName: nextOfKinName || null,
+          nextOfKinPhone: nextOfKinPhone || null,
+          nextOfKinRelationship: nextOfKinRelationship || null,
+        });
 
-      await tenantProfileRepo.save(tenantProfile);
+        await tenantProfileRepo.save(tenantProfile);
+        console.log('✅ Tenant profile created');
+      } catch (err) {
+        console.error('❌ Error creating tenant profile:', err);
+        throw new Error(`Failed to create tenant profile: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
 
       // Assign tenant to unit
-      const unit = (req as any).unit;
-      unit.currentTenantId = newTenant.id;
-      unit.status = 'occupied';
-      unit.tenant = newTenant;
+      try {
+        console.log('🏠 Assigning tenant to unit:', unitId);
+        const unit = (req as any).unit;
+        if (!unit) {
+          throw new Error('Unit not found in request context');
+        }
+        
+        unit.currentTenantId = newTenant.id;
+        unit.status = 'occupied';
+        unit.tenant = newTenant;
 
-      await unitRepo.save(unit);
+        await unitRepo.save(unit);
+        console.log('✅ Tenant assigned to unit');
+      } catch (err) {
+        console.error('❌ Error assigning tenant to unit:', err);
+        throw new Error(`Failed to assign tenant to unit: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
 
       // Create or find LeaseTerm
-      let leaseTerm = await leaseTermRepo.findOne({
-        where: { durationMonths: leaseTermMonths || 12 },
-      });
-
-      if (!leaseTerm) {
-        leaseTerm = leaseTermRepo.create({
-          name: `${leaseTermMonths || 12}-Month Lease`,
-          durationMonths: leaseTermMonths || 12,
-          autoRenewal: false,
-          noticePeriodDays: 30,
+      let leaseTerm;
+      try {
+        console.log('🔍 Looking for lease term with duration:', leaseTermMonths || 12);
+        leaseTerm = await leaseTermRepo.findOne({
+          where: { durationMonths: leaseTermMonths || 12 },
         });
-        await leaseTermRepo.save(leaseTerm);
+
+        if (!leaseTerm) {
+          console.log('📋 Creating new lease term...');
+          leaseTerm = leaseTermRepo.create({
+            name: `${leaseTermMonths || 12}-Month Lease`,
+            durationMonths: leaseTermMonths || 12,
+            autoRenewal: false,
+            noticePeriodDays: 30,
+          });
+          await leaseTermRepo.save(leaseTerm);
+          console.log('✅ Lease term created:', leaseTerm.id);
+        } else {
+          console.log('✅ Lease term found:', leaseTerm.id);
+        }
+      } catch (err) {
+        console.error('❌ Error with lease term:', err);
+        throw new Error(`Failed to process lease term: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
 
       // Calculate lease dates
-      const startDate = new Date(dateJoined || new Date());
-      const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + (leaseTermMonths || 12));
+      try {
+        console.log('📅 Calculating lease dates...');
+        const startDate = new Date(dateJoined || new Date());
+        const endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + (leaseTermMonths || 12));
 
-      // Determine rent due date - default to monthly on the start date day
-      const computedRentDueDate = new Date(startDate);
-      computedRentDueDate.setDate(startDate.getDate());
+        const computedRentDueDate = new Date(startDate);
+        computedRentDueDate.setDate(startDate.getDate());
 
-      // Create Lease record with all fields
-      const lease = leaseRepo.create({
-        tenantId: newTenant.id,
-        leaseTermId: leaseTerm.id,
-        monthlyRent: parseFloat(String(monthlyRent)) || 0,
-        securityFee: securityFee ? parseFloat(String(securityFee)) : 0,
-        garbageAmount: garbageAmount ? parseFloat(String(garbageAmount)) : 0,
-        waterUnitCost: waterUnitCost ? parseFloat(String(waterUnitCost)) : 0,
-        securityDeposit: (rentDeposit || 0) + (waterDeposit || 0) + (electricityDeposit || 0) + (otherDeposit || 0),
-        depositPaid: false,
-        startDate,
-        endDate,
-        rentDueDate: rentDueDate ? new Date(rentDueDate) : computedRentDueDate,
-        status: 'active',
-      });
+        console.log('📅 Lease dates calculated:', { startDate, endDate, computedRentDueDate });
 
-      // Set non-relation columns
-      lease.propertyId = propertyId;
-      lease.landlordId = property.landlordId;
-
-      await leaseRepo.save(lease);
-
-      // Create deposit breakdown
-      if (rentDeposit || waterDeposit || electricityDeposit || otherDeposit) {
-        const depositBreakdown = depositBreakdownRepo.create({
-          leaseId: lease.id,
-          rentDeposit: rentDeposit || 0,
-          waterDeposit: waterDeposit || null,
-          electricityDeposit: electricityDeposit || null,
-          otherDeposit: otherDeposit || null,
-          otherDepositDescription: otherDepositDescription || null,
+        // Create Lease record
+        console.log('📜 Creating lease record with:', {
+          monthlyRent,
+          securityFee,
+          garbageAmount,
+          waterUnitCost,
+          startDate,
+          endDate,
         });
 
-        await depositBreakdownRepo.save(depositBreakdown);
-      }
+        const lease = leaseRepo.create({
+          tenantId: newTenant.id,
+          leaseTermId: leaseTerm.id,
+          monthlyRent: parseFloat(String(monthlyRent)) || 0,
+          securityFee: securityFee ? parseFloat(String(securityFee)) : 0,
+          garbageAmount: garbageAmount ? parseFloat(String(garbageAmount)) : 0,
+          waterUnitCost: waterUnitCost ? parseFloat(String(waterUnitCost)) : 0,
+          securityDeposit: (rentDeposit || 0) + (waterDeposit || 0) + (electricityDeposit || 0) + (otherDeposit || 0),
+          depositPaid: false,
+          startDate,
+          endDate,
+          rentDueDate: rentDueDate ? new Date(rentDueDate) : computedRentDueDate,
+          status: 'active',
+        });
 
-      res.status(201).json({
-        message: 'Tenant created and assigned successfully',
-        tenant: {
-          id: newTenant.id,
-          firstName: newTenant.firstName,
-          lastName: newTenant.lastName,
-          email: newTenant.email,
-          phoneNumber: newTenant.phoneNumber,
-          idNumber: newTenant.idNumber,
-          role: newTenant.role,
-          isActive: newTenant.isActive,
-          defaultPassword: 'tenant@123',
-        },
-        lease: {
-          id: lease.id,
-          monthlyRent: lease.monthlyRent,
-          securityFee: lease.securityFee,
-          garbageAmount: lease.garbageAmount,
-          waterUnitCost: lease.waterUnitCost,
-          securityDeposit: lease.securityDeposit,
-          startDate: lease.startDate,
-          endDate: lease.endDate,
-          rentDueDate: lease.rentDueDate,
-          status: lease.status,
-        },
-        unit: {
-          id: unit.id,
-          unitNumber: unit.unitNumber,
-          roomType: unit.roomType,
-          status: unit.status,
-          currentTenantId: unit.currentTenantId,
-        },
+        // Set required non-relation columns
+        lease.propertyId = propertyId;
+        lease.landlordId = property.landlordId;
+
+        await leaseRepo.save(lease);
+        console.log('✅ Lease created:', lease.id);
+
+        // Create deposit breakdown if needed
+        if (rentDeposit || waterDeposit || electricityDeposit || otherDeposit) {
+          try {
+            console.log('💰 Creating deposit breakdown...');
+            const depositBreakdown = depositBreakdownRepo.create({
+              leaseId: lease.id,
+              rentDeposit: rentDeposit || 0,
+              waterDeposit: waterDeposit || null,
+              electricityDeposit: electricityDeposit || null,
+              otherDeposit: otherDeposit || null,
+              otherDepositDescription: otherDepositDescription || null,
+            });
+
+            await depositBreakdownRepo.save(depositBreakdown);
+            console.log('✅ Deposit breakdown created');
+          } catch (err) {
+            console.error('❌ Error creating deposit breakdown:', err);
+            throw new Error(`Failed to create deposit breakdown: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          }
+        }
+
+        // Success response
+        console.log('✅ Tenant creation successful');
+        res.status(201).json({
+          message: 'Tenant created and assigned successfully',
+          tenant: {
+            id: newTenant.id,
+            firstName: newTenant.firstName,
+            lastName: newTenant.lastName,
+            email: newTenant.email,
+            phoneNumber: newTenant.phoneNumber,
+            idNumber: newTenant.idNumber,
+            role: newTenant.role,
+            isActive: newTenant.isActive,
+            defaultPassword: 'tenant@123',
+          },
+          lease: {
+            id: lease.id,
+            monthlyRent: lease.monthlyRent,
+            securityFee: lease.securityFee,
+            garbageAmount: lease.garbageAmount,
+            waterUnitCost: lease.waterUnitCost,
+            securityDeposit: lease.securityDeposit,
+            startDate: lease.startDate,
+            endDate: lease.endDate,
+            rentDueDate: lease.rentDueDate,
+            status: lease.status,
+          },
+          unit: {
+            id: (req as any).unit.id,
+            unitNumber: (req as any).unit.unitNumber,
+            roomType: (req as any).unit.roomType,
+            status: 'occupied',
+            currentTenantId: newTenant.id,
+          },
+        });
+      } catch (err) {
+        console.error('❌ Error in lease creation:', err);
+        throw new Error(`Failed to create lease: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      console.error('❌ FATAL Error creating tenant:', {
+        error: error.message,
+        stack: error.stack,
+        name: error.name,
       });
-    } catch (error) {
-      console.error('Error creating tenant:', error);
       res.status(500).json({ 
         error: 'Failed to create tenant', 
-        details: error instanceof Error ? error.message : '' 
+        details: error.message || (error instanceof Error ? error.message : 'Unknown error'),
+        type: error.name || 'UnknownError'
       });
     }
   }

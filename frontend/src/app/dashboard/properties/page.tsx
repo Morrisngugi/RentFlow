@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/common/Button';
 import { toast } from 'react-toastify';
+import { X } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
@@ -25,12 +27,34 @@ interface Property {
 
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
+  const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
+  const [filterLandlordName, setFilterLandlordName] = useState<string | null>(null);
+  
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const landlordId = searchParams.get('landlordId');
 
   useEffect(() => {
     fetchProperties();
   }, []);
+
+  useEffect(() => {
+    // Filter properties if landlordId is provided
+    if (landlordId) {
+      const filtered = properties.filter((p) => p.landlord.id === landlordId);
+      setFilteredProperties(filtered);
+      
+      // Get landlord name from first filtered property
+      if (filtered.length > 0) {
+        setFilterLandlordName(filtered[0].landlord.name);
+      }
+    } else {
+      setFilteredProperties(properties);
+      setFilterLandlordName(null);
+    }
+  }, [properties, landlordId]);
 
   const fetchProperties = async () => {
     try {
@@ -80,6 +104,10 @@ export default function PropertiesPage() {
     }
   };
 
+  const clearFilter = () => {
+    router.push('/dashboard/properties');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-12 px-4 flex items-center justify-center">
@@ -96,8 +124,14 @@ export default function PropertiesPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Properties</h1>
-          <p className="text-gray-600 mt-2">Manage all your properties in one place</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {filterLandlordName ? `${filterLandlordName}'s Properties` : 'My Properties'}
+          </h1>
+          <p className="text-gray-600 mt-2">
+            {filterLandlordName
+              ? `Showing ${filteredProperties.length} propert${filteredProperties.length === 1 ? 'y' : 'ies'} owned by ${filterLandlordName}`
+              : 'Manage all your properties in one place'}
+          </p>
         </div>
         <Link href="/dashboard/properties/create">
           <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
@@ -106,24 +140,56 @@ export default function PropertiesPage() {
         </Link>
       </div>
 
-      {properties.length === 0 ? (
+      {/* Filter Badge */}
+      {landlordId && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-blue-700">
+              📊 Filtered by landlord: <strong>{filterLandlordName}</strong>
+            </span>
+          </div>
+          <button
+            onClick={clearFilter}
+            className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-semibold"
+          >
+            <X size={16} />
+            Clear Filter
+          </button>
+        </div>
+      )}
+
+      {filteredProperties.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
           <div className="text-6xl mb-4">🏠</div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2">No Properties Yet</h2>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+            {landlordId ? 'No Properties Found' : 'No Properties Yet'}
+          </h2>
           <p className="text-gray-600 mb-6">
-            Start by creating your first property to manage tenants and track rent payments.
+            {landlordId
+              ? `This landlord hasn't created any properties yet.`
+              : 'Start by creating your first property to manage tenants and track rent payments.'}
           </p>
-          <Link href="/dashboard/properties/create">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
-              Create Property
-            </Button>
-          </Link>
+          <div className="flex gap-4 justify-center">
+            <Link href="/dashboard/properties/create">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
+                Create Property
+              </Button>
+            </Link>
+            {landlordId && (
+              <button
+                onClick={clearFilter}
+                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg transition"
+              >
+                View All Properties
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Properties List */}
           <div className="lg:col-span-2 space-y-4">
-            {properties.map((property) => (
+            {filteredProperties.map((property) => (
               <div
                 key={property.id}
                 onClick={() => setSelectedProperty(property.id)}
@@ -177,7 +243,7 @@ export default function PropertiesPage() {
           {selectedProperty && (
             <div className="bg-white rounded-lg shadow-md p-6 h-fit sticky top-6">
               {(() => {
-                const property = properties.find((p) => p.id === selectedProperty);
+                const property = filteredProperties.find((p) => p.id === selectedProperty);
                 if (!property) return null;
 
                 return (
