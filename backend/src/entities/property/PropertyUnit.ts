@@ -3,9 +3,11 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { User } from '../User';
 
 @Entity('property_units')
 export class PropertyUnit {
@@ -46,9 +48,10 @@ export class PropertyUnit {
   })
   floor!: any;
 
-  @ManyToOne('User', {
+  @ManyToOne(() => User, {
     nullable: true,
     eager: false,
   })
-  tenant!: any;
+  @JoinColumn({ name: 'currentTenantId' })
+  tenant!: User | null;
 }

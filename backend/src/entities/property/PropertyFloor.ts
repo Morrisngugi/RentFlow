@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Property } from './Property';
+import { PropertyUnit } from './PropertyUnit';
 
 @Entity('property_floors')
 export class PropertyFloor {
@@ -38,8 +39,8 @@ export class PropertyFloor {
   })
   property!: Property;
 
-  @OneToMany('PropertyUnit', (unit: any) => unit.floor, {
+  @OneToMany(() => PropertyUnit, (unit) => unit.floor, {
     cascade: true,
   })
-  units!: any[];
+  units!: PropertyUnit[];
 }

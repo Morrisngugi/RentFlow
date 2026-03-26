@@ -283,16 +283,33 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
 
     try {
       const propertyRepo = AppDataSource.getRepository(Property);
-      const property = await propertyRepo.findOne({
-        where: { id: req.params.id, agentId: req.user.userId },
-        relations: ['landlord', 'floors', 'floors.units', 'floors.units.tenant', 'roomTypePricing'],
-      });
+      const property = await propertyRepo
+        .createQueryBuilder('p')
+        .leftJoinAndSelect('p.landlord', 'landlord')
+        .leftJoinAndSelect('p.floors', 'floors')
+        .leftJoinAndSelect('floors.units', 'units')
+        .leftJoinAndSelect('units.tenant', 'tenant')
+        .leftJoinAndSelect('p.roomTypePricing', 'pricing')
+        .where('p.id = :id AND p.agentId = :agentId', {
+          id: req.params.id,
+          agentId: req.user.userId,
+        })
+        .getOne();
 
       if (!property) {
         throw new NotFoundError('Property', { propertyId: req.params.id });
       }
 
       console.log('✅ Property fetched:', property.id);
+      
+      // Debug: Log tenant data
+      property.floors.forEach((floor) => {
+        floor.units.forEach((unit) => {
+          if (unit.currentTenantId) {
+            console.log(`🔍 Unit ${unit.unitNumber}: currentTenantId=${unit.currentTenantId}, tenant=${unit.tenant ? `${unit.tenant.firstName} ${unit.tenant.lastName}` : 'NOT LOADED'}`);
+          }
+        });
+      });
       return res.status(200).json({
         success: true,
         message: 'Property retrieved successfully',
@@ -326,12 +343,14 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
                 currentTenantId: unit.currentTenantId,
               };
               // Include tenant info if occupied
+              console.log(`🔍 Mapping Unit ${unit.unitNumber}: currentTenantId=${unit.currentTenantId}, tenant exists=${!!unit.tenant}, tenant=${unit.tenant ? `${unit.tenant.firstName} ${unit.tenant.lastName}` : 'null'}`);
               if (unit.currentTenantId && unit.tenant) {
                 unitData.tenant = {
                   id: unit.tenant.id,
                   firstName: unit.tenant.firstName,
                   lastName: unit.tenant.lastName,
                 };
+                console.log(`✅ Added tenant data for unit ${unit.unitNumber}`);
               }
               return unitData;
             }),
