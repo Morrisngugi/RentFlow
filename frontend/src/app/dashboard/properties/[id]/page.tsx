@@ -82,6 +82,7 @@ export default function PropertyDetailsPage() {
 
   // Form states
   const [rentForm, setRentForm] = useState({ monthlyRent: 0, depositAmount: 0 });
+  const [roomTypePrices, setRoomTypePrices] = useState<Record<string, number>>({});
   const [floorForm, setFloorForm] = useState({ floorNumber: 0, unitsPerFloor: 0, floorName: '' });
   const [unitForm, setUnitForm] = useState({ unitNumber: 0, unitName: '', roomType: '', status: 'vacant' as 'vacant' | 'occupied' | 'maintenance' });
   const [submitting, setSubmitting] = useState(false);
@@ -116,6 +117,15 @@ export default function PropertyDetailsPage() {
         monthlyRent: result.data.monthlyRent || 0,
         depositAmount: result.data.depositAmount || 0,
       });
+      
+      // Initialize room type prices
+      if (result.data.roomTypePricings && result.data.roomTypePricings.length > 0) {
+        const prices: Record<string, number> = {};
+        result.data.roomTypePricings.forEach((pricing: any) => {
+          prices[pricing.roomType] = pricing.price;
+        });
+        setRoomTypePrices(prices);
+      }
     } catch (error) {
       console.error('Error fetching property details:', error);
       toast.error('Failed to load property details');
@@ -125,28 +135,36 @@ export default function PropertyDetailsPage() {
   };
 
   // Rent Details Handlers
-  const handleUpdateRent = async () => {
+  const handleUpdateRoomTypePrices = async () => {
     setSubmitting(true);
     try {
-      const response = await fetch(`${API_URL}/properties/${propertyId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          monthlyRent: rentForm.monthlyRent,
-          depositAmount: rentForm.depositAmount,
-        }),
-      });
+      const updates = Object.entries(roomTypePrices).map(([roomType, price]) =>
+        fetch(`${API_URL}/properties/${propertyId}/room-type-pricing`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({
+            roomType,
+            price,
+            billingFrequency: 'monthly',
+          }),
+        })
+      );
 
-      if (!response.ok) throw new Error('Failed to update rent details');
+      const results = await Promise.all(updates);
+      
+      // Check if all requests were successful
+      for (const res of results) {
+        if (!res.ok) throw new Error('Failed to update pricing');
+      }
 
-      toast.success('Rent details updated successfully');
+      toast.success('Room type prices updated successfully');
       setShowRentModal(false);
       fetchPropertyDetails();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update rent details';
+      const message = error instanceof Error ? error.message : 'Failed to update pricing';
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -647,9 +665,9 @@ export default function PropertyDetailsPage() {
       {/* Edit Rent Details Modal */}
       {showRentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold text-gray-900">Edit Rent Details</h3>
+              <h3 className="text-xl font-semibold text-gray-900">Edit Room Type Pricing</h3>
               <button
                 onClick={() => setShowRentModal(false)}
                 className="text-gray-500 hover:text-gray-700"
@@ -658,43 +676,59 @@ export default function PropertyDetailsPage() {
               </button>
             </div>
             
-            <div className="space-y-4">
+            {property && property.roomTypePricings && property.roomTypePricings.length > 0 ? (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Rent (KES)</label>
-                <input
-                  type="number"
-                  value={rentForm.monthlyRent}
-                  onChange={(e) => setRentForm({ ...rentForm, monthlyRent: parseFloat(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                <div className="space-y-4">
+                  {property.roomTypePricings.map((pricing) => (
+                    <div key={pricing.id} className="flex items-center gap-4">
+                      <label className="w-40 text-sm font-medium text-gray-700">
+                        {pricing.roomType}
+                      </label>
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="text-gray-600">KES</span>
+                        <input
+                          type="number"
+                          value={roomTypePrices[pricing.roomType] || pricing.price}
+                          onChange={(e) =>
+                            setRoomTypePrices({
+                              ...roomTypePrices,
+                              [pricing.roomType]: parseFloat(e.target.value),
+                            })
+                          }
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Deposit Amount (KES)</label>
-                <input
-                  type="number"
-                  value={rentForm.depositAmount}
-                  onChange={(e) => setRentForm({ ...rentForm, depositAmount: parseFloat(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="flex gap-2 mt-6">
+                  <button
+                    onClick={() => setShowRentModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleUpdateRoomTypePrices}
+                    disabled={submitting}
+                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+                  >
+                    {submitting ? 'Saving...' : 'Save Prices'}
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div className="flex gap-2 mt-6">
-              <button
-                onClick={() => setShowRentModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateRent}
-                disabled={submitting}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
-              >
-                {submitting ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-600 mb-4">No room type pricing available</p>
+                <button
+                  onClick={() => setShowRentModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
