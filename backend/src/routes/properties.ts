@@ -137,6 +137,7 @@ router.post('/', authenticate, checkUserActive, async (req: AuthenticatedRequest
             const unit = unitRepo.create({
               floorId: savedFloor.id,
               unitNumber: unitNum,
+              unitName: floorDTO.unitNames?.[unitNum - 1] || `Unit ${unitNum}`,
               roomType: floorDTO.roomTypes?.[unitNum - 1] || '1-Bedroom',
               status: 'vacant',
             });

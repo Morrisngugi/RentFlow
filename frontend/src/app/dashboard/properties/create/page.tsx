@@ -8,10 +8,39 @@ import { toast } from 'react-toastify';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
+// Utility to generate floor names
+function generateFloorName(floorNumber: number): string {
+  if (floorNumber === 1) {
+    return 'Ground Floor';
+  } else if (floorNumber === 2) {
+    return 'First Floor';
+  } else {
+    const ordinal = getOrdinalSuffix(floorNumber - 1);
+    return `${floorNumber - 1}${ordinal} Floor`;
+  }
+}
+
+function getOrdinalSuffix(num: number): string {
+  if (num % 100 >= 11 && num % 100 <= 13) {
+    return 'th';
+  }
+  switch (num % 10) {
+    case 1:
+      return 'st';
+    case 2:
+      return 'nd';
+    case 3:
+      return 'rd';
+    default:
+      return 'th';
+  }
+}
+
 interface Floor {
   floorNumber: number;
   unitsPerFloor: number;
   roomTypes: string[];
+  unitNames: string[];
   description?: string;
 }
 
@@ -50,6 +79,7 @@ export default function CreatePropertyPage() {
         floorNumber: 1,
         unitsPerFloor: 2,
         roomTypes: ['1-Bedroom', '1-Bedroom'],
+        unitNames: ['Unit 1', 'Unit 2'],
         description: 'Ground Floor',
       },
     ],
@@ -100,8 +130,19 @@ export default function CreatePropertyPage() {
     });
   };
 
+  const updateFloorUnitName = (floorIndex: number, unitIndex: number, unitName: string) => {
+    setFormData((prev) => {
+      const newFloors = [...prev.floors];
+      const newUnitNames = [...newFloors[floorIndex].unitNames];
+      newUnitNames[unitIndex] = unitName;
+      newFloors[floorIndex] = { ...newFloors[floorIndex], unitNames: newUnitNames };
+      return { ...prev, floors: newFloors };
+    });
+  };
+
   const addFloor = () => {
     const newFloorNumber = Math.max(...formData.floors.map((f) => f.floorNumber)) + 1;
+    const generatedFloorName = generateFloorName(newFloorNumber);
     setFormData((prev) => ({
       ...prev,
       floors: [
@@ -110,7 +151,8 @@ export default function CreatePropertyPage() {
           floorNumber: newFloorNumber,
           unitsPerFloor: 2,
           roomTypes: Array(2).fill('1-Bedroom'),
-          description: `Floor ${newFloorNumber}`,
+          unitNames: ['Unit 1', 'Unit 2'],
+          description: generatedFloorName,
         },
       ],
     }));
@@ -130,21 +172,25 @@ export default function CreatePropertyPage() {
       const newFloors = [...prev.floors];
       const currentCount = newFloors[floorIndex].roomTypes.length;
       const newRoomTypes = [...newFloors[floorIndex].roomTypes];
+      const newUnitNames = [...newFloors[floorIndex].unitNames];
 
       if (newCount > currentCount) {
-        // Add new rooms
+        // Add new rooms and unit names
         for (let i = currentCount; i < newCount; i++) {
           newRoomTypes.push('1-Bedroom');
+          newUnitNames.push(`Unit ${i + 1}`);
         }
       } else if (newCount < currentCount) {
-        // Remove rooms
+        // Remove rooms and unit names
         newRoomTypes.splice(newCount);
+        newUnitNames.splice(newCount);
       }
 
       newFloors[floorIndex] = {
         ...newFloors[floorIndex],
         unitsPerFloor: newCount,
         roomTypes: newRoomTypes,
+        unitNames: newUnitNames,
       };
 
       return { ...prev, floors: newFloors };
@@ -429,7 +475,7 @@ export default function CreatePropertyPage() {
                   className="border border-gray-200 rounded-lg p-4 bg-gray-50"
                 >
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-medium text-gray-900">Floor {floor.floorNumber}</h3>
+                    <h3 className="font-medium text-gray-900">{floor.description || generateFloorName(floor.floorNumber)}</h3>
                     {formData.floors.length > 1 && (
                       <button
                         type="button"
@@ -449,7 +495,11 @@ export default function CreatePropertyPage() {
                       <input
                         type="number"
                         value={floor.floorNumber}
-                        onChange={(e) => updateFloor(floorIndex, { floorNumber: parseInt(e.target.value) })}
+                        onChange={(e) => {
+                          const newFloorNumber = parseInt(e.target.value);
+                          const newDescription = generateFloorName(newFloorNumber);
+                          updateFloor(floorIndex, { floorNumber: newFloorNumber, description: newDescription });
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
@@ -472,40 +522,66 @@ export default function CreatePropertyPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Floor Description
+                        Floor Name/Description
                       </label>
                       <input
                         type="text"
                         value={floor.description || ''}
                         onChange={(e) => updateFloor(floorIndex, { description: e.target.value })}
-                        placeholder="e.g., Ground Floor"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder={generateFloorName(floor.floorNumber)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 italic text-gray-600"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Auto-generated: {generateFloorName(floor.floorNumber)}</p>
                     </div>
                   </div>
 
                   {/* Units Configuration */}
                   <div className="bg-white rounded p-3">
                     <p className="text-sm font-medium text-gray-700 mb-3">Units Configuration</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-3">
                       {Array.from({ length: floor.unitsPerFloor }).map((_, unitIndex) => (
-                        <div key={unitIndex}>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Unit {unitIndex + 1}
-                          </label>
-                          <select
-                            value={floor.roomTypes[unitIndex] || '1-Bedroom'}
-                            onChange={(e) =>
-                              updateFloorRoomType(floorIndex, unitIndex, e.target.value)
-                            }
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            {roomTypeOptions.map((type) => (
-                              <option key={type} value={type}>
-                                {type}
-                              </option>
-                            ))}
-                          </select>
+                        <div key={unitIndex} className="border border-gray-200 rounded p-3 bg-gray-50">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Unit Name *
+                              </label>
+                              <input
+                                type="text"
+                                value={floor.unitNames[unitIndex] || `Unit ${unitIndex + 1}`}
+                                onChange={(e) =>
+                                  updateFloorUnitName(floorIndex, unitIndex, e.target.value)
+                                }
+                                placeholder="e.g., F001, A101, Unit 1"
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Custom name for this unit</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Room Type *
+                              </label>
+                              <select
+                                value={floor.roomTypes[unitIndex] || '1-Bedroom'}
+                                onChange={(e) =>
+                                  updateFloorRoomType(floorIndex, unitIndex, e.target.value)
+                                }
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                {roomTypeOptions.map((type) => (
+                                  <option key={type} value={type}>
+                                    {type}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex items-end">
+                              <div className="bg-blue-50 rounded p-2 w-full text-center">
+                                <p className="text-xs font-medium text-gray-600">Name: {floor.unitNames[unitIndex] || `Unit ${unitIndex + 1}`}</p>
+                                <p className="text-xs text-gray-500">Type: {floor.roomTypes[unitIndex] || '1-Bedroom'}</p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>

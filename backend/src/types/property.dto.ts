@@ -9,7 +9,16 @@ export class PropertyFloorDTO {
   unitsPerFloor!: number;
 
   @IsString()
+  @IsOptional()
   description?: string;
+
+  @IsArray()
+  @IsOptional()
+  roomTypes?: string[]; // Array of room types for each unit
+
+  @IsArray()
+  @IsOptional()
+  unitNames?: string[]; // Custom names for each unit (e.g., F001, A101)
 }
 
 export class PropertyUnitDTO {
