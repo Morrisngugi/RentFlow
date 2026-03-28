@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   OneToMany,
+  OneToOne,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -12,6 +13,7 @@ import { User } from '../User';
 import { LeaseTerm } from './LeaseTerm';
 import { Payment } from '../payment/Payment';
 import { LeaseRenewal } from './LeaseRenewal';
+import { DepositBreakdown } from './DepositBreakdown';
 
 @Entity('leases')
 export class Lease {
@@ -33,13 +35,16 @@ export class Lease {
   monthlyRent!: number;
 
   @Column({ type: 'numeric', default: 0 })
+  securityFee!: number; // Monthly security fee if property has security personnel
+
+  @Column({ type: 'numeric', default: 0 })
   garbageAmount!: number;
 
   @Column({ type: 'numeric', default: 0 })
   waterUnitCost!: number;
 
-  @Column({ type: 'numeric', default: 0 })
-  securityDeposit!: number;
+  @Column({ type: 'numeric', nullable: true })
+  securityDeposit!: number | null; // One-time upfront deposit per tenant (nullable for properties that don't charge it)
 
   @Column({ type: 'boolean', default: false })
   depositPaid!: boolean;
@@ -52,6 +57,9 @@ export class Lease {
 
   @Column({ type: 'date' })
   endDate!: Date;
+
+  @Column({ type: 'date', nullable: true })
+  rentDueDate!: Date;
 
   @Column({
     type: 'enum',
@@ -82,5 +90,11 @@ export class Lease {
 
   @OneToMany(() => LeaseRenewal, (renewal) => renewal.lease)
   renewals!: LeaseRenewal[];
+
+  @OneToOne(() => DepositBreakdown, (breakdown) => breakdown.lease, {
+    nullable: true,
+    cascade: true,
+  })
+  depositBreakdown!: DepositBreakdown;
 }
 

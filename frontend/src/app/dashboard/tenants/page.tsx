@@ -1,106 +1,74 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiClient } from '@/lib/api';
+import { Plus, AlertCircle } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 interface Tenant {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
   status: string;
   createdAt: string;
+  initials: string;
+}
+
+interface ApiResponse {
+  data: Tenant[];
+  error?: string;
 }
 
 export default function TenantsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-    if (userStr) {
-      setUser(JSON.parse(userStr));
-    }
+    fetchTenants();
   }, []);
 
-  useEffect(() => {
-    const fetchTenants = async () => {
-      try {
-        setLoading(true);
-        // TODO: Replace with actual API endpoint when available
-        // const data = await apiClient.getTenants();
-        // setTenants(data);
-        
-        // For now, show mock data
-        setTenants([
-          {
-            id: '1',
-            name: 'John Kariuki',
-            email: 'john.kariuki@example.com',
-            phone: '0722111222',
-            status: 'Active',
-            createdAt: '2/28/2026',
+  const fetchTenants = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/tenants`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
           },
-          {
-            id: '2',
-            name: 'Sarah Omondi',
-            email: 'sarah.omondi@example.com',
-            phone: '0733222333',
-            status: 'Active',
-            createdAt: '3/5/2026',
-          },
-          {
-            id: '3',
-            name: 'Michael Kipchoge',
-            email: 'michael.kip@example.com',
-            phone: '0701333444',
-            status: 'Inactive',
-            createdAt: '3/1/2026',
-          },
-          {
-            id: '4',
-            name: 'Grace Ngeno',
-            email: 'grace.ngeno@example.com',
-            phone: '0722444555',
-            status: 'Active',
-            createdAt: '2/15/2026',
-          },
-          {
-            id: '5',
-            name: 'David Mwangi',
-            email: 'david.mwangi@example.com',
-            phone: '0741555666',
-            status: 'Active',
-            createdAt: '3/10/2026',
-          },
-        ]);
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to load tenants');
-        setLoading(false);
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.push('/login');
+          return;
+        }
+        throw new Error('Failed to fetch tenants');
       }
-    };
 
-    if (user) {
-      fetchTenants();
+      const result: ApiResponse = await response.json();
+      setTenants(result.data || []);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An error occurred';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
-  }, [user]);
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase();
   };
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'numeric',
+      month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
@@ -109,132 +77,114 @@ export default function TenantsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'bg-green-100 text-green-800';
       case 'Inactive':
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-gray-100 text-gray-800';
       case 'Pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        return 'bg-yellow-100 text-yellow-800';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg text-gray-600">Loading tenants...</div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="p-8">
       {/* Page Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-8">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Tenants</h1>
-          <p className="text-gray-600 text-lg">
-            {user?.role === 'admin'
-              ? 'Manage all tenants in the system'
-              : 'View tenant information'}
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">Tenants</h1>
+          <p className="text-gray-600 mt-1">Manage your tenants and track their information</p>
         </div>
-
-        {user?.role === 'admin' && (
-          <button
-            onClick={() => router.push('/dashboard/tenants/add')}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200"
-          >
-            + Add Tenant
-          </button>
-        )}
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-100 border-l-4 border-red-600 text-red-800 rounded">
-          {error}
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+          <AlertCircle className="text-red-600 mt-0.5" size={20} />
+          <div>
+            <h3 className="font-semibold text-red-900">Error</h3>
+            <p className="text-red-700">{error}</p>
+          </div>
         </div>
       )}
 
-      {/* Tenants Grid/List */}
-      <div className="grid grid-cols-1 gap-4">
-        {tenants.map((tenant) => (
-          <div
-            key={tenant.id}
-            className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 p-6 border-l-4 border-blue-500 cursor-pointer group"
-            onClick={() => router.push(`/dashboard/tenants/${tenant.id}`)}
-          >
-            <div className="flex items-start justify-between">
-              {/* Tenant Info */}
-              <div className="flex items-start gap-4 flex-1">
-                {/* Avatar */}
+      {tenants.length === 0 ? (
+        <div className="bg-white rounded-lg shadow p-12 text-center">
+          <div className="text-gray-400 mb-4">
+            <AlertCircle size={48} className="mx-auto" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">No tenants yet</h3>
+          <p className="text-gray-600">Tenants will appear here once properties are created and occupied</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {tenants.map((tenant) => (
+            <div
+              key={tenant.id}
+              className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 border-l-4 border-blue-500 cursor-pointer"
+              onClick={() => router.push(`/dashboard/tenants/${tenant.id}`)}
+            >
+              <div className="flex items-start justify-between mb-4">
+                {/* Avatar with Initials */}
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center font-bold text-lg shadow-md">
-                  {getInitials(tenant.name)}
+                  {tenant.initials}
                 </div>
 
-                {/* Details */}
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                    {tenant.name}
-                  </h3>
-                  <div className="mt-2 space-y-1">
-                    <div className="text-sm text-gray-600">
-                      <span className="font-semibold">Email:</span> {tenant.email}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <span className="font-semibold">Phone:</span> {tenant.phone}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <span className="font-semibold">Created:</span> {tenant.createdAt}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Status Badge */}
-              <div className="flex flex-col items-end gap-3">
+                {/* Status Badge */}
                 <span
-                  className={`px-4 py-2 rounded-full text-sm font-semibold border-2 ${getStatusColor(
+                  className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
                     tenant.status
                   )}`}
                 >
                   {tenant.status}
                 </span>
+              </div>
 
-                {user?.role === 'admin' && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // TODO: Implement edit functionality
-                    }}
-                    className="text-blue-600 hover:text-blue-800 font-semibold text-sm px-3 py-1 rounded hover:bg-blue-50 transition-colors"
-                  >
-                    Edit
-                  </button>
-                )}
+              {/* Tenant Info */}
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">
+                  {tenant.firstName} {tenant.lastName}
+                </h3>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">Email:</span>
+                    <span className="font-medium">{tenant.email}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-500">Phone:</span>
+                    <span className="font-medium">{tenant.phone}</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <span className="text-gray-500">Created:</span>
+                    <span className="font-medium">{formatDate(tenant.createdAt)}</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {tenants.length === 0 && (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <div className="text-6xl mb-4">👥</div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">No Tenants Found</h3>
-          <p className="text-gray-600">
-            {user?.role === 'admin'
-              ? 'Start by adding your first tenant to the system.'
-              : 'There are no tenants to display.'}
-          </p>
-          {user?.role === 'admin' && (
-            <button
-              onClick={() => router.push('/dashboard/tenants/add')}
-              className="mt-6 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Add First Tenant
-            </button>
-          )}
+      {/* Summary Stats */}
+      {tenants.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 mt-8">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-gray-600 text-sm font-semibold mb-2">Total Tenants</h3>
+            <p className="text-3xl font-bold text-gray-900">{tenants.length}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-gray-600 text-sm font-semibold mb-2">Active Tenants</h3>
+            <p className="text-3xl font-bold text-gray-900">
+              {tenants.filter(t => t.status === 'Active').length}
+            </p>
+          </div>
         </div>
       )}
     </div>

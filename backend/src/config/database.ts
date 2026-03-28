@@ -9,14 +9,20 @@ import { AgentProfile } from '../entities/profile/AgentProfile';
 import { LandlordProfile } from '../entities/profile/LandlordProfile';
 import { AgentLandlordAssignment } from '../entities/AgentLandlordAssignment';
 import { Property } from '../entities/property/Property';
+import { PropertyRoomTypePricing } from '../entities/property/PropertyRoomTypePricing';
 import { PropertyImage } from '../entities/property/PropertyImage';
+import { PropertyFloor } from '../entities/property/PropertyFloor';
+import { PropertyUnit } from '../entities/property/PropertyUnit';
 import { Lease } from '../entities/lease/Lease';
 import { LeaseRenewal } from '../entities/lease/LeaseRenewal';
 import { LeaseTerm } from '../entities/lease/LeaseTerm';
+import { DepositBreakdown } from '../entities/lease/DepositBreakdown';
 import { Payment } from '../entities/payment/Payment';
 import { Deposit } from '../entities/payment/Deposit';
 import { LateFee } from '../entities/payment/LateFee';
 import { RentSchedule } from '../entities/payment/RentSchedule';
+import { WaterMeterReading } from '../entities/payment/WaterMeterReading';
+import { MonthlyRentBreakdown } from '../entities/payment/MonthlyRentBreakdown';
 import { Complaint } from '../entities/complaint/Complaint';
 import { ComplaintAttachment } from '../entities/complaint/ComplaintAttachment';
 import { Notification } from '../entities/notification/Notification';
@@ -40,14 +46,20 @@ export const AppDataSource = new DataSource({
     LandlordProfile,
     AgentLandlordAssignment,
     Property,
+    PropertyRoomTypePricing,
     PropertyImage,
+    PropertyFloor,
+    PropertyUnit,
     Lease,
     LeaseRenewal,
     LeaseTerm,
+    DepositBreakdown,
     Payment,
     Deposit,
     LateFee,
     RentSchedule,
+    WaterMeterReading,
+    MonthlyRentBreakdown,
     Complaint,
     ComplaintAttachment,
     Notification,
