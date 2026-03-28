@@ -35,8 +35,23 @@ export class MonthlyRentBreakdown {
   @Column({ type: 'numeric', default: 0 })
   securityFee!: number; // Monthly security fee
 
+  @Column({ type: 'numeric', default: 0 })
+  penaltyCharges!: number; // Late payment penalty
+
+  @Column({ type: 'numeric', default: 0 })
+  electricityReconnectionFee!: number; // Electricity reconnection charge
+
+  @Column({ type: 'numeric', default: 0 })
+  waterReconnectionFee!: number; // Water reconnection charge
+
+  @Column({ type: 'numeric', default: 0 })
+  otherCharges!: number; // Any other miscellaneous charges
+
+  @Column({ type: 'text', nullable: true })
+  additionalChargesDescription!: string; // Description of other charges
+
   @Column({ type: 'numeric' })
-  totalDue!: number; // baseRent + waterCharges + garbageCharges + securityFee
+  totalDue!: number; // baseRent + waterCharges + garbageCharges + securityFee + penalties + reconnections + other
 
   @Column({ type: 'numeric', default: 0 })
   amountPaid!: number; // Total payments received for this month
