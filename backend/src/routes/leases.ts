@@ -261,15 +261,31 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
       // Update monthly breakdown with the payment amount
       console.log('📝 Updating breakdown status...');
       const amountPaidNumeric = parseFloat(String(amount));
-      const newAmountPaid = parseFloat(String(breakdown.amountPaid || 0)) + amountPaidNumeric;
-      const newOverpayment = newAmountPaid - parseFloat(String(breakdown.totalDue));
+      const prevAmountPaid = parseFloat(String(breakdown.amountPaid || 0));
+      const totalDueNumeric = parseFloat(String(breakdown.totalDue));
+      const newAmountPaid = prevAmountPaid + amountPaidNumeric;
+      const newOverpayment = newAmountPaid - totalDueNumeric;
+      
+      console.log('💰 Payment calculation:', {
+        prevAmountPaid,
+        newPayment: amountPaidNumeric,
+        newAmountPaid,
+        totalDue: totalDueNumeric,
+        newOverpayment,
+        condition1: `newAmountPaid (${newAmountPaid}) >= totalDue (${totalDueNumeric})? ${newAmountPaid >= totalDueNumeric}`,
+        condition2: `newAmountPaid (${newAmountPaid}) > 0? ${newAmountPaid > 0}`,
+      });
       
       let newStatus = breakdown.status;
-      if (newAmountPaid >= parseFloat(String(breakdown.totalDue))) {
+      if (newAmountPaid >= totalDueNumeric) {
         newStatus = newOverpayment > 0 ? 'overpaid' : 'paid';
+        console.log('✅ Amount >= Due. Status:', newStatus);
       } else if (newAmountPaid > 0) {
         newStatus = 'partial';
+        console.log('✅ Partial payment. Status:', newStatus);
       }
+      
+      console.log('🏷️ Status determined:', { fromBreakdown: breakdown.status, calculated: newStatus });
 
       // Use update to ensure it persists
       await monthlyBreakdownRepo.update(
@@ -294,11 +310,26 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
           payment: savedPayment,
           breakdown: {
             id: updatedBreakdown?.id,
+            leaseId: updatedBreakdown?.leaseId,
+            month: updatedBreakdown?.month,
+            year: updatedBreakdown?.year,
+            baseRent: updatedBreakdown?.baseRent,
+            waterCharges: updatedBreakdown?.waterCharges,
+            garbageCharges: updatedBreakdown?.garbageCharges,
+            securityFee: updatedBreakdown?.securityFee,
+            penaltyCharges: updatedBreakdown?.penaltyCharges || 0,
+            electricityReconnectionFee: updatedBreakdown?.electricityReconnectionFee || 0,
+            waterReconnectionFee: updatedBreakdown?.waterReconnectionFee || 0,
+            otherCharges: updatedBreakdown?.otherCharges || 0,
+            additionalChargesDescription: updatedBreakdown?.additionalChargesDescription || '',
             totalDue: updatedBreakdown?.totalDue,
             amountPaid: updatedBreakdown?.amountPaid,
             balanceRemaining: Math.max(0, parseFloat(String(updatedBreakdown?.totalDue || 0)) - parseFloat(String(updatedBreakdown?.amountPaid || 0))),
             overpayment: Math.max(0, parseFloat(String(updatedBreakdown?.overpayment || 0))),
             status: updatedBreakdown?.status,
+            dueDate: updatedBreakdown?.dueDate,
+            createdAt: updatedBreakdown?.createdAt,
+            updatedAt: updatedBreakdown?.updatedAt,
           },
         },
       });
@@ -379,6 +410,11 @@ router.get('/:leaseId/monthly-breakdown', authenticate, async (req: Authenticate
           waterCharges: breakdown.waterCharges,
           garbageCharges: breakdown.garbageCharges,
           securityFee: breakdown.securityFee,
+          penaltyCharges: breakdown.penaltyCharges || 0,
+          electricityReconnectionFee: breakdown.electricityReconnectionFee || 0,
+          waterReconnectionFee: breakdown.waterReconnectionFee || 0,
+          otherCharges: breakdown.otherCharges || 0,
+          additionalChargesDescription: breakdown.additionalChargesDescription || '',
           totalDue: breakdown.totalDue,
           amountPaid: breakdown.amountPaid,
           balanceRemaining: Math.max(0, breakdown.totalDue - breakdown.amountPaid),
@@ -609,6 +645,28 @@ router.patch('/:breakdownId/update-charges', authenticate, async (req: Authentic
     const otherNum = parseFloat(String(otherCharges || 0));
     const totalNum = parseFloat(String(totalDue || 0));
 
+    // Recalculate status based on the new totalDue and existing amountPaid
+    const currentAmountPaid = parseFloat(String(breakdown.amountPaid || 0));
+    console.log('🔄 Recalculating status after charge update:', {
+      oldTotalDue: breakdown.totalDue,
+      newTotalDue: totalNum,
+      currentAmountPaid,
+      oldStatus: breakdown.status,
+    });
+
+    let newStatus = breakdown.status;
+    if (currentAmountPaid >= totalNum) {
+      const newOverpayment = currentAmountPaid - totalNum;
+      newStatus = newOverpayment > 0 ? 'overpaid' : 'paid';
+      console.log('✅ Amount >= New Total Due. New Status:', newStatus);
+    } else if (currentAmountPaid > 0) {
+      newStatus = 'partial';
+      console.log('✅ Partial payment with new total. New Status:', newStatus);
+    } else {
+      newStatus = 'pending';
+      console.log('✅ No payment yet. New Status:', newStatus);
+    }
+
     await breakdownRepo.update(
       { id: breakdownId },
       {
@@ -618,8 +676,11 @@ router.patch('/:breakdownId/update-charges', authenticate, async (req: Authentic
         otherCharges: otherNum,
         additionalChargesDescription,
         totalDue: totalNum,
+        status: newStatus,
       }
     );
+
+    console.log('📝 Charges and status updated. New Status:', newStatus);
 
     // Refetch updated breakdown
     const updatedBreakdown = await breakdownRepo.findOne({

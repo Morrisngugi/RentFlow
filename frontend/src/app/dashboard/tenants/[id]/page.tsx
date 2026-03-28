@@ -346,9 +346,13 @@ export default function TenantDetailPage() {
 
   const handleOpenPaymentModal = () => {
     if (breakdown) {
+      const totalDue = parseFloat(String(breakdown.totalDue ?? 0));
+      const amountPaid = parseFloat(String(breakdown.amountPaid ?? 0));
+      const balanceRemaining = Math.max(0, totalDue - amountPaid);
+      
       setPaymentForm({
         ...paymentForm,
-        amount: parseFloat(String(breakdown.totalDue)) || 0,
+        amount: balanceRemaining || 0,
       });
     }
     setShowPaymentModal(true);
@@ -716,16 +720,33 @@ export default function TenantDetailPage() {
                       <span className="text-gray-600">Security Fee</span>
                       <span className="font-semibold">KES {parseFloat(String(breakdown.securityFee ?? 0)).toLocaleString()}</span>
                     </div>
-                    {breakdown.penalty && parseFloat(String(breakdown.penalty)) > 0 && (
+                    {breakdown.penaltyCharges && parseFloat(String(breakdown.penaltyCharges)) > 0 && (
                       <div className="flex justify-between text-red-600">
                         <span className="text-gray-600">Late Payment Penalty</span>
-                        <span className="font-semibold">KES {parseFloat(String(breakdown.penalty)).toLocaleString()}</span>
+                        <span className="font-semibold">KES {parseFloat(String(breakdown.penaltyCharges)).toLocaleString()}</span>
                       </div>
                     )}
-                    {breakdown.additionalCharges && parseFloat(String(breakdown.additionalCharges)) > 0 && (
+                    {breakdown.electricityReconnectionFee && parseFloat(String(breakdown.electricityReconnectionFee)) > 0 && (
+                      <div className="flex justify-between text-red-600">
+                        <span className="text-gray-600">Electricity Reconnection Fee</span>
+                        <span className="font-semibold">KES {parseFloat(String(breakdown.electricityReconnectionFee)).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {breakdown.waterReconnectionFee && parseFloat(String(breakdown.waterReconnectionFee)) > 0 && (
+                      <div className="flex justify-between text-red-600">
+                        <span className="text-gray-600">Water Reconnection Fee</span>
+                        <span className="font-semibold">KES {parseFloat(String(breakdown.waterReconnectionFee)).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {breakdown.otherCharges && parseFloat(String(breakdown.otherCharges)) > 0 && (
                       <div className="flex justify-between text-red-600">
                         <span className="text-gray-600">Other Charges</span>
-                        <span className="font-semibold">KES {parseFloat(String(breakdown.additionalCharges)).toLocaleString()}</span>
+                        <span className="font-semibold">KES {parseFloat(String(breakdown.otherCharges)).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {breakdown.additionalChargesDescription && (
+                      <div className="text-xs text-gray-700 bg-red-50 p-2 rounded italic">
+                        Note: {breakdown.additionalChargesDescription}
                       </div>
                     )}
                     <div className="border-t pt-3 flex justify-between bg-yellow-50 p-3 rounded">
@@ -781,14 +802,31 @@ export default function TenantDetailPage() {
                       })()}
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
-                      Status: <span className="font-semibold capitalize">{breakdown.status}</span>
+                      {(() => {
+                        const totalDue = parseFloat(String(breakdown.totalDue ?? 0));
+                        const amountPaid = parseFloat(String(breakdown.amountPaid ?? 0));
+                        const balanceRemaining = Math.max(0, totalDue - amountPaid);
+                        const overpayment = Math.max(0, amountPaid - totalDue);
+                        
+                        if (overpayment > 0) {
+                          return `Status: Overpaid (KES ${overpayment.toLocaleString()})`;
+                        } else if (balanceRemaining > 0) {
+                          return `Status: Partial Payment (Balance: KES ${balanceRemaining.toLocaleString()})`;
+                        }
+                        return 'Status: Paid ✓';
+                      })()}
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Make Payment Button */}
-              {breakdown && breakdown.status !== 'paid' && breakdown.status !== 'overpaid' && (
+              {breakdown && (() => {
+                const totalDue = parseFloat(String(breakdown.totalDue ?? 0));
+                const amountPaid = parseFloat(String(breakdown.amountPaid ?? 0));
+                const balanceRemaining = Math.max(0, totalDue - amountPaid);
+                return balanceRemaining > 0;
+              })() && (
                 <button
                   onClick={handleOpenPaymentModal}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 mb-4"
@@ -798,7 +836,12 @@ export default function TenantDetailPage() {
                 </button>
               )}
               
-              {breakdown && (breakdown.status === 'paid' || breakdown.status === 'overpaid') && (
+              {breakdown && (() => {
+                const totalDue = parseFloat(String(breakdown.totalDue ?? 0));
+                const amountPaid = parseFloat(String(breakdown.amountPaid ?? 0));
+                const balanceRemaining = Math.max(0, totalDue - amountPaid);
+                return balanceRemaining === 0;
+              })() && (
                 <button
                   disabled
                   className="w-full bg-gray-400 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 cursor-not-allowed mb-4"
@@ -844,6 +887,76 @@ export default function TenantDetailPage() {
 
             {lease && (
               <>
+                {/* Current Invoice Summary */}
+                {breakdown && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Invoice</h3>
+                    <div className="space-y-2 text-sm mb-4">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Base Rent</span>
+                        <span className="font-semibold">KES {parseFloat(String(breakdown.baseRent ?? 0)).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Water Charges</span>
+                        <span className="font-semibold">KES {parseFloat(String(breakdown.waterCharges ?? 0)).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Garbage Charges</span>
+                        <span className="font-semibold">KES {parseFloat(String(breakdown.garbageCharges ?? 0)).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Security Fee</span>
+                        <span className="font-semibold">KES {parseFloat(String(breakdown.securityFee ?? 0)).toLocaleString()}</span>
+                      </div>
+                      {breakdown.penaltyCharges && parseFloat(String(breakdown.penaltyCharges)) > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <span className="text-gray-600">Late Payment Penalty</span>
+                          <span className="font-semibold">KES {parseFloat(String(breakdown.penaltyCharges)).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {breakdown.electricityReconnectionFee && parseFloat(String(breakdown.electricityReconnectionFee)) > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <span className="text-gray-600">Electricity Reconnection Fee</span>
+                          <span className="font-semibold">KES {parseFloat(String(breakdown.electricityReconnectionFee)).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {breakdown.waterReconnectionFee && parseFloat(String(breakdown.waterReconnectionFee)) > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <span className="text-gray-600">Water Reconnection Fee</span>
+                          <span className="font-semibold">KES {parseFloat(String(breakdown.waterReconnectionFee)).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {breakdown.otherCharges && parseFloat(String(breakdown.otherCharges)) > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <span className="text-gray-600">Other Charges</span>
+                          <span className="font-semibold">KES {parseFloat(String(breakdown.otherCharges)).toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="border-t pt-2 flex justify-between font-semibold bg-yellow-100 p-2 rounded">
+                        <span>Total Due</span>
+                        <span className="text-blue-600">KES {parseFloat(String(breakdown.totalDue ?? 0)).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Status */}
+                {breakdown && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Payment Status</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Amount Already Paid</span>
+                        <span className="font-semibold text-green-600">KES {parseFloat(String(breakdown.amountPaid ?? 0)).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-gray-600 font-semibold">Balance Remaining</span>
+                        <span className="font-semibold text-red-600">KES {Math.max(0, parseFloat(String(breakdown.totalDue ?? 0)) - parseFloat(String(breakdown.amountPaid ?? 0))).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Rent Breakdown Section */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Rent Breakdown</h3>
@@ -877,21 +990,32 @@ export default function TenantDetailPage() {
                       placeholder="Enter amount"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                    {paymentForm.amount > 0 && (
+                    {breakdown && paymentForm.amount > 0 && (
                       <div className="mt-2 p-3 bg-green-50 rounded border border-green-200">
-                        {paymentForm.amount < calculateTotalWithWater() ? (
-                          <div>
-                            <p className="text-sm text-gray-600">Remaining Balance</p>
-                            <p className="text-lg font-bold text-red-600">KES {(calculateTotalWithWater() - paymentForm.amount).toLocaleString()}</p>
-                          </div>
-                        ) : paymentForm.amount > calculateTotalWithWater() ? (
-                          <div>
-                            <p className="text-sm text-gray-600">Overpayment</p>
-                            <p className="text-lg font-bold text-green-600">KES {(paymentForm.amount - calculateTotalWithWater()).toLocaleString()}</p>
-                          </div>
-                        ) : (
-                          <p className="text-sm font-semibold text-green-600">Full Payment ✓</p>
-                        )}
+                        {(() => {
+                          const totalDue = parseFloat(String(breakdown.totalDue ?? 0));
+                          const amountPaid = parseFloat(String(breakdown.amountPaid ?? 0));
+                          const newTotalPaid = amountPaid + paymentForm.amount;
+                          const newBalance = totalDue - newTotalPaid;
+                          
+                          if (newBalance > 0) {
+                            return (
+                              <div>
+                                <p className="text-sm text-gray-600">Remaining Balance After Payment</p>
+                                <p className="text-lg font-bold text-red-600">KES {newBalance.toLocaleString()}</p>
+                              </div>
+                            );
+                          } else if (newBalance < 0) {
+                            return (
+                              <div>
+                                <p className="text-sm text-gray-600">Overpayment</p>
+                                <p className="text-lg font-bold text-green-600">KES {Math.abs(newBalance).toLocaleString()}</p>
+                              </div>
+                            );
+                          } else {
+                            return <p className="text-sm font-semibold text-green-600">Full Payment ✓</p>;
+                          }
+                        })()}
                       </div>
                     )}
                   </div>
