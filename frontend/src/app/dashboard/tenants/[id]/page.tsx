@@ -52,6 +52,8 @@ interface PaymentForm {
   year: number;
   previousWaterReading: number;
   currentWaterReading: number;
+  penalty?: number;
+  additionalCharges?: number;
 }
 
 export default function TenantDetailPage() {
@@ -63,9 +65,18 @@ export default function TenantDetailPage() {
   const [lease, setLease] = useState<Lease | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showUpdateInvoiceModal, setShowUpdateInvoiceModal] = useState(false);
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [breakdown, setBreakdown] = useState<any>(null);
+  const [isUpdatingInvoice, setIsUpdatingInvoice] = useState(false);
+  const [invoiceUpdateForm, setInvoiceUpdateForm] = useState<any>({
+    penaltyCharges: 0,
+    electricityReconnectionFee: 0,
+    waterReconnectionFee: 0,
+    otherCharges: 0,
+    additionalChargesDescription: '',
+  });
   const [paymentForm, setPaymentForm] = useState<PaymentForm>({
     amount: 0,
     paymentDate: new Date().toISOString().split('T')[0],
@@ -73,6 +84,8 @@ export default function TenantDetailPage() {
     year: new Date().getFullYear(),
     previousWaterReading: 0,
     currentWaterReading: 0,
+    penalty: 0,
+    additionalCharges: 0,
   });
 
   useEffect(() => {
@@ -210,10 +223,9 @@ export default function TenantDetailPage() {
     try {
       // Calculate water bill
       const waterBill = calculateWaterBill();
-      const totalDue = calculateTotalRent() + waterBill;
+      const totalDue = calculateTotalRent() + waterBill + (paymentForm.penalty || 0) + (paymentForm.additionalCharges || 0);
 
-      // Create a dummy payment to generate the breakdown (amountDue field)
-      // This will create the breakdown if it doesn't exist
+      // Create a dummy payment to generate/update the breakdown
       const response = await fetch(`${API_URL}/leases/${lease.id}/payments`, {
         method: 'POST',
         headers: {
@@ -231,11 +243,13 @@ export default function TenantDetailPage() {
             currentReading: paymentForm.currentWaterReading,
             unitsConsumed: calculateWaterUnitsConsumed(),
           },
+          penalty: paymentForm.penalty || 0,
+          additionalCharges: paymentForm.additionalCharges || 0,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate invoice');
+        throw new Error('Failed to generate/update invoice');
       }
 
       const result = await response.json();
@@ -243,13 +257,23 @@ export default function TenantDetailPage() {
       // Update breakdown with invoice data
       if (result.data?.breakdown) {
         setBreakdown(result.data.breakdown);
-        toast.success('Invoice generated successfully');
+        toast.success(isUpdatingInvoice ? 'Invoice updated successfully' : 'Invoice generated successfully');
+        setIsUpdatingInvoice(false);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate invoice';
       toast.error(message);
     } finally {
       setGeneratingInvoice(false);
+    }
+  };
+
+  const handleOpenInvoiceEditor = () => {
+    if (breakdown) {
+      // Pre-fill form with existing breakdown data
+      setIsUpdatingInvoice(true);
+      // Keep previous reading implicit - we'll recalculate based on current vs previous
+      // For now, just set current values
     }
   };
 
@@ -328,6 +352,73 @@ export default function TenantDetailPage() {
       });
     }
     setShowPaymentModal(true);
+  };
+
+  const handleOpenUpdateInvoiceModal = () => {
+    if (breakdown) {
+      // Pre-fill form with current breakdown data
+      setInvoiceUpdateForm({
+        penaltyCharges: parseFloat(String(breakdown.penaltyCharges || 0)),
+        electricityReconnectionFee: parseFloat(String(breakdown.electricityReconnectionFee || 0)),
+        waterReconnectionFee: parseFloat(String(breakdown.waterReconnectionFee || 0)),
+        otherCharges: parseFloat(String(breakdown.otherCharges || 0)),
+        additionalChargesDescription: breakdown.additionalChargesDescription || '',
+      });
+      setShowUpdateInvoiceModal(true);
+    }
+  };
+
+  const handleUpdateInvoiceCharges = async () => {
+    if (!breakdown || !lease) {
+      toast.error('No invoice found to update');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Recalculate total due with all charges
+      const totalCharges = 
+        parseFloat(String(breakdown.baseRent || 0)) +
+        parseFloat(String(breakdown.waterCharges || 0)) +
+        parseFloat(String(breakdown.garbageCharges || 0)) +
+        parseFloat(String(breakdown.securityFee || 0)) +
+        (invoiceUpdateForm.penaltyCharges || 0) +
+        (invoiceUpdateForm.electricityReconnectionFee || 0) +
+        (invoiceUpdateForm.waterReconnectionFee || 0) +
+        (invoiceUpdateForm.otherCharges || 0);
+
+      const response = await fetch(`${API_URL}/leases/${breakdown.id}/update-charges`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          penaltyCharges: invoiceUpdateForm.penaltyCharges || 0,
+          electricityReconnectionFee: invoiceUpdateForm.electricityReconnectionFee || 0,
+          waterReconnectionFee: invoiceUpdateForm.waterReconnectionFee || 0,
+          otherCharges: invoiceUpdateForm.otherCharges || 0,
+          additionalChargesDescription: invoiceUpdateForm.additionalChargesDescription || '',
+          totalDue: totalCharges,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update invoice charges');
+      }
+
+      const result = await response.json();
+      if (result.data) {
+        setBreakdown(result.data);
+        toast.success('Invoice charges updated successfully');
+        setShowUpdateInvoiceModal(false);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update charges';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -536,11 +627,48 @@ export default function TenantDetailPage() {
                 </div>
               </div>
 
+              {/* Additional Charges Section (visible when updating or editing) */}
+              {breakdown && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Additional Charges</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Late Payment Penalty (KES)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="100"
+                        value={paymentForm.penalty || ''}
+                        onChange={(e) =>
+                          setPaymentForm({ ...paymentForm, penalty: parseFloat(e.target.value) || 0 })
+                        }
+                        placeholder="e.g., 500"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Other Charges (KES)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="100"
+                        value={paymentForm.additionalCharges || ''}
+                        onChange={(e) =>
+                          setPaymentForm({ ...paymentForm, additionalCharges: parseFloat(e.target.value) || 0 })
+                        }
+                        placeholder="e.g., 200"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Total with Water */}
               <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300 rounded-lg p-4 mb-6">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-900 font-bold text-lg">Total Rent Due</span>
-                  <span className="text-3xl font-bold text-blue-600">KES {calculateTotalWithWater().toLocaleString()}</span>
+                  <span className="text-3xl font-bold text-blue-600">KES {(calculateTotalWithWater() + (paymentForm.penalty || 0) + (paymentForm.additionalCharges || 0)).toLocaleString()}</span>
                 </div>
               </div>
 
@@ -554,12 +682,12 @@ export default function TenantDetailPage() {
 
               {/* Generate or Update Invoice Button */}
               <button
-                onClick={handleGenerateInvoice}
-                disabled={generatingInvoice}
+                onClick={breakdown ? handleOpenUpdateInvoiceModal : handleGenerateInvoice}
+                disabled={generatingInvoice || submitting}
                 className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
               >
                 <Plus size={20} />
-                {generatingInvoice ? 'Generating Invoice...' : breakdown ? 'Update Invoice' : 'Generate Invoice'}
+                {generatingInvoice ? 'Generating Invoice...' : submitting ? 'Updating...' : breakdown ? 'Update Invoice' : 'Generate Invoice'}
               </button>
             </div>
 
@@ -588,6 +716,18 @@ export default function TenantDetailPage() {
                       <span className="text-gray-600">Security Fee</span>
                       <span className="font-semibold">KES {parseFloat(String(breakdown.securityFee ?? 0)).toLocaleString()}</span>
                     </div>
+                    {breakdown.penalty && parseFloat(String(breakdown.penalty)) > 0 && (
+                      <div className="flex justify-between text-red-600">
+                        <span className="text-gray-600">Late Payment Penalty</span>
+                        <span className="font-semibold">KES {parseFloat(String(breakdown.penalty)).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {breakdown.additionalCharges && parseFloat(String(breakdown.additionalCharges)) > 0 && (
+                      <div className="flex justify-between text-red-600">
+                        <span className="text-gray-600">Other Charges</span>
+                        <span className="font-semibold">KES {parseFloat(String(breakdown.additionalCharges)).toLocaleString()}</span>
+                      </div>
+                    )}
                     <div className="border-t pt-3 flex justify-between bg-yellow-50 p-3 rounded">
                       <span className="text-gray-900 font-bold">Total Due</span>
                       <span className="text-2xl font-bold text-blue-600">KES {parseFloat(String(breakdown.totalDue ?? 0)).toLocaleString()}</span>
@@ -813,6 +953,150 @@ export default function TenantDetailPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Update Invoice Modal */}
+      {showUpdateInvoiceModal && breakdown && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full p-8 max-h-screen overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Update Invoice Charges</h2>
+              <button
+                onClick={() => setShowUpdateInvoiceModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Current Breakdown Summary */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Charges</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Base Rent</span>
+                  <span className="font-semibold">KES {parseFloat(String(breakdown.baseRent || 0)).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Water Charges</span>
+                  <span className="font-semibold">KES {parseFloat(String(breakdown.waterCharges || 0)).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Garbage Charges</span>
+                  <span className="font-semibold">KES {parseFloat(String(breakdown.garbageCharges || 0)).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Security Fee</span>
+                  <span className="font-semibold">KES {parseFloat(String(breakdown.securityFee || 0)).toLocaleString()}</span>
+                </div>
+                <div className="border-t pt-3 flex justify-between font-semibold">
+                  <span>Subtotal</span>
+                  <span>KES {(parseFloat(String(breakdown.baseRent || 0)) + parseFloat(String(breakdown.waterCharges || 0)) + parseFloat(String(breakdown.garbageCharges || 0)) + parseFloat(String(breakdown.securityFee || 0))).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Charges Form */}
+            <div className="space-y-4 mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Additional Charges</h3>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Late Payment Penalty (KES)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={invoiceUpdateForm.penaltyCharges || ''}
+                  onChange={(e) =>
+                    setInvoiceUpdateForm({ ...invoiceUpdateForm, penaltyCharges: parseFloat(e.target.value) || 0 })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Electricity Reconnection Fee (KES)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={invoiceUpdateForm.electricityReconnectionFee || ''}
+                  onChange={(e) =>
+                    setInvoiceUpdateForm({ ...invoiceUpdateForm, electricityReconnectionFee: parseFloat(e.target.value) || 0 })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Water Reconnection Fee (KES)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={invoiceUpdateForm.waterReconnectionFee || ''}
+                  onChange={(e) =>
+                    setInvoiceUpdateForm({ ...invoiceUpdateForm, waterReconnectionFee: parseFloat(e.target.value) || 0 })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Other Charges (KES)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={invoiceUpdateForm.otherCharges || ''}
+                  onChange={(e) =>
+                    setInvoiceUpdateForm({ ...invoiceUpdateForm, otherCharges: parseFloat(e.target.value) || 0 })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description of Other Charges</label>
+                <textarea
+                  value={invoiceUpdateForm.additionalChargesDescription || ''}
+                  onChange={(e) =>
+                    setInvoiceUpdateForm({ ...invoiceUpdateForm, additionalChargesDescription: e.target.value })
+                  }
+                  placeholder="e.g., Maintenance fee, HOA charges, etc."
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* New Total */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-900 font-bold text-lg">New Total Due</span>
+                <span className="text-3xl font-bold text-yellow-600">
+                  KES {(parseFloat(String(breakdown.baseRent || 0)) + parseFloat(String(breakdown.waterCharges || 0)) + parseFloat(String(breakdown.garbageCharges || 0)) + parseFloat(String(breakdown.securityFee || 0)) + (invoiceUpdateForm.penaltyCharges || 0) + (invoiceUpdateForm.electricityReconnectionFee || 0) + (invoiceUpdateForm.waterReconnectionFee || 0) + (invoiceUpdateForm.otherCharges || 0)).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowUpdateInvoiceModal(false)}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 py-2 rounded-lg font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateInvoiceCharges}
+                disabled={submitting}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-2 rounded-lg font-semibold"
+              >
+                {submitting ? 'Updating...' : 'Update Invoice'}
+              </button>
+            </div>
           </div>
         </div>
       )}

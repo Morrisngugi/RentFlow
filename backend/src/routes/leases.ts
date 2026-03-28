@@ -567,4 +567,78 @@ async function calculateMonthlyRent(leaseId: string, month?: number, year?: numb
   }
 }
 
+/**
+ * PATCH /api/v1/leases/:breakdownId/update-charges
+ * Update additional charges on a monthly rent breakdown
+ */
+router.patch('/:breakdownId/update-charges', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('🔄 Updating invoice charges for breakdown:', req.params.breakdownId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    const { breakdownId } = req.params;
+    const {
+      penaltyCharges = 0,
+      electricityReconnectionFee = 0,
+      waterReconnectionFee = 0,
+      otherCharges = 0,
+      additionalChargesDescription = '',
+      totalDue,
+    } = req.body;
+
+    const breakdownRepo = AppDataSource.getRepository(MonthlyRentBreakdown);
+    
+    const breakdown = await breakdownRepo.findOne({
+      where: { id: breakdownId }
+    });
+
+    if (!breakdown) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invoice not found',
+      });
+    }
+
+    // Update charges
+    const penaltyNum = parseFloat(String(penaltyCharges || 0));
+    const elecReconnNum = parseFloat(String(electricityReconnectionFee || 0));
+    const waterReconnNum = parseFloat(String(waterReconnectionFee || 0));
+    const otherNum = parseFloat(String(otherCharges || 0));
+    const totalNum = parseFloat(String(totalDue || 0));
+
+    await breakdownRepo.update(
+      { id: breakdownId },
+      {
+        penaltyCharges: penaltyNum,
+        electricityReconnectionFee: elecReconnNum,
+        waterReconnectionFee: waterReconnNum,
+        otherCharges: otherNum,
+        additionalChargesDescription,
+        totalDue: totalNum,
+      }
+    );
+
+    // Refetch updated breakdown
+    const updatedBreakdown = await breakdownRepo.findOne({
+      where: { id: breakdownId }
+    });
+
+    console.log('✅ Invoice charges updated successfully');
+    return res.status(200).json({
+      success: true,
+      message: 'Invoice charges updated successfully',
+      data: updatedBreakdown,
+    });
+  } catch (error: any) {
+    console.error('❌ Error updating invoice charges:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update invoice charges',
+    });
+  }
+});
+
 export default router;
