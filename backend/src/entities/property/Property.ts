@@ -79,6 +79,22 @@ export class Property {
   @Column({ type: 'simple-array', nullable: true })
   imageUrls!: string[];
 
+  @Column({
+    type: 'enum',
+    enum: ['bank', 'paybill'],
+    nullable: true,
+  })
+  paymentMethod!: string; // 'bank' for bank transfers, 'paybill' for paybill
+
+  @Column({ type: 'varchar', nullable: true })
+  bankName!: string; // Bank name for bank transfer method
+
+  @Column({ type: 'varchar', nullable: true })
+  accountNumber!: string; // Account number for bank transfers or paybill reference
+
+  @Column({ type: 'varchar', nullable: true })
+  paybillNumber!: string; // Paybill number for paybill method
+
   @Column({ type: 'boolean', default: true })
   isAvailable!: boolean;
 

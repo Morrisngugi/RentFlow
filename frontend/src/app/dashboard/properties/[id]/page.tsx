@@ -31,6 +31,13 @@ interface Floor {
   units: Unit[];
 }
 
+interface RoomTypePricing {
+  id: string;
+  roomType: string;
+  price: number;
+  billingFrequency: string;
+}
+
 interface PropertyDetails {
   id: string;
   name: string;
@@ -49,6 +56,7 @@ interface PropertyDetails {
     email: string;
   } | null;
   floors: Floor[];
+  roomTypePricings: RoomTypePricing[];
   createdAt: string;
   updatedAt: string;
 }
@@ -408,24 +416,48 @@ export default function PropertyDetailsPage() {
                 Edit Rent
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <p className="text-gray-600 text-sm">Property Type</p>
                 <p className="font-medium text-gray-900 capitalize">{property.propertyType}</p>
-              </div>
-              <div>
-                <p className="text-gray-600 text-sm">Monthly Rent</p>
-                <p className="font-medium text-gray-900">KES {property.monthlyRent ? property.monthlyRent.toLocaleString() : 'N/A'}</p>
-              </div>
-              <div>
-                <p className="text-gray-600 text-sm">Deposit Amount</p>
-                <p className="font-medium text-gray-900">KES {property.depositAmount ? property.depositAmount.toLocaleString() : 'N/A'}</p>
               </div>
               <div>
                 <p className="text-gray-600 text-sm">Country</p>
                 <p className="font-medium text-gray-900">{property.country}</p>
               </div>
             </div>
+
+            {/* Room Type Pricing Section */}
+            {property.roomTypePricings && property.roomTypePricings.length > 0 ? (
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Unit Pricing by Room Type</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <th className="text-left px-4 py-3 text-gray-700 font-semibold text-sm">Room Type</th>
+                        <th className="text-left px-4 py-3 text-gray-700 font-semibold text-sm">Monthly Price</th>
+                        <th className="text-left px-4 py-3 text-gray-700 font-semibold text-sm">Billing</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {property.roomTypePricings.map((pricing, idx) => (
+                        <tr key={pricing.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-4 py-3 text-gray-900 font-medium">{pricing.roomType}</td>
+                          <td className="px-4 py-3 text-gray-900 font-semibold text-lg">KES {pricing.price.toLocaleString()}</td>
+                          <td className="px-4 py-3 text-gray-600 capitalize">{pricing.billingFrequency}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-gray-500 text-sm">No room type pricing has been set yet.</p>
+              </div>
+            )}
+
             {property.description && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <p className="text-gray-600 text-sm mb-2">Description</p>

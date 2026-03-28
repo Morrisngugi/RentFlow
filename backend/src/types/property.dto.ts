@@ -130,6 +130,22 @@ export class CreatePropertyRequest {
   floors!: PropertyFloorDTO[];
 
   @IsString()
+  @IsOptional()
+  paymentMethod?: string; // 'bank' or 'paybill'
+
+  @IsString()
+  @IsOptional()
+  bankName?: string; // Bank name for bank transfer method
+
+  @IsString()
+  @IsOptional()
+  accountNumber?: string; // Account number for bank transfers or paybill reference
+
+  @IsString()
+  @IsOptional()
+  paybillNumber?: string; // Paybill number for paybill method
+
+  @IsString()
   @IsNotEmpty()
   landlordFirstName!: string;
 

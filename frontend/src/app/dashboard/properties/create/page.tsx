@@ -53,6 +53,10 @@ interface FormData {
   description: string;
   propertyType: string;
   floors: Floor[];
+  paymentMethod: 'bank' | 'paybill';
+  bankName: string;
+  accountNumber: string;
+  paybillNumber: string;
   landlordFirstName: string;
   landlordLastName: string;
   landlordEmail: string;
@@ -83,6 +87,10 @@ export default function CreatePropertyPage() {
         description: 'Ground Floor',
       },
     ],
+    paymentMethod: 'bank',
+    bankName: '',
+    accountNumber: '',
+    paybillNumber: '',
     landlordFirstName: '',
     landlordLastName: '',
     landlordEmail: '',
@@ -248,6 +256,32 @@ export default function CreatePropertyPage() {
       }
     }
 
+    // Validate payment account details
+    if (!formData.paymentMethod) {
+      toast.error('Payment method is required');
+      return false;
+    }
+
+    if (formData.paymentMethod === 'bank') {
+      if (!formData.bankName.trim()) {
+        toast.error('Bank name is required');
+        return false;
+      }
+      if (!formData.accountNumber.trim()) {
+        toast.error('Account number is required');
+        return false;
+      }
+    } else if (formData.paymentMethod === 'paybill') {
+      if (!formData.paybillNumber.trim()) {
+        toast.error('Paybill number is required');
+        return false;
+      }
+      if (!formData.accountNumber.trim()) {
+        toast.error('Account number (reference) is required');
+        return false;
+      }
+    }
+
     return true;
   };
 
@@ -276,6 +310,10 @@ export default function CreatePropertyPage() {
           description: formData.description,
           propertyType: formData.propertyType,
           floors: formData.floors,
+          paymentMethod: formData.paymentMethod,
+          bankName: formData.bankName,
+          accountNumber: formData.accountNumber,
+          paybillNumber: formData.paybillNumber,
           landlordFirstName: formData.landlordFirstName,
           landlordLastName: formData.landlordLastName,
           landlordEmail: formData.landlordEmail,
@@ -622,6 +660,102 @@ export default function CreatePropertyPage() {
                 <p className="text-sm text-yellow-800">
                   ⚠️ Add at least one floor and unit to define room types
                 </p>
+              </div>
+            )}
+          </div>
+
+          {/* Rent Payment Account Section */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Rent Payment Account</h2>
+            <p className="text-gray-600 text-sm mb-6">Configure how tenants will pay rent</p>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Payment Method *
+              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="bank"
+                    checked={formData.paymentMethod === 'bank'}
+                    onChange={handlePropertyChange}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="ml-2 text-sm text-gray-700 font-medium">Bank Transfer</span>
+                </label>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="paybill"
+                    checked={formData.paymentMethod === 'paybill'}
+                    onChange={handlePropertyChange}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="ml-2 text-sm text-gray-700 font-medium">Paybill</span>
+                </label>
+              </div>
+            </div>
+
+            {formData.paymentMethod === 'bank' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Bank Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="bankName"
+                    value={formData.bankName}
+                    onChange={handlePropertyChange}
+                    placeholder="e.g., Kenya Commercial Bank"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Account Number *
+                  </label>
+                  <input
+                    type="text"
+                    name="accountNumber"
+                    value={formData.accountNumber}
+                    onChange={handlePropertyChange}
+                    placeholder="e.g., 1234567890"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Paybill Number *
+                  </label>
+                  <input
+                    type="text"
+                    name="paybillNumber"
+                    value={formData.paybillNumber}
+                    onChange={handlePropertyChange}
+                    placeholder="e.g., 522600"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Account Number (Reference) *
+                  </label>
+                  <input
+                    type="text"
+                    name="accountNumber"
+                    value={formData.accountNumber}
+                    onChange={handlePropertyChange}
+                    placeholder="e.g., 123456"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
             )}
           </div>

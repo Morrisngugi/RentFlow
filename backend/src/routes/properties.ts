@@ -110,6 +110,10 @@ router.post('/', authenticate, checkUserActive, async (req: AuthenticatedRequest
         propertyType: req.body.propertyType || 'house',
         propertyModel: req.body.propertyModel || 'rental',
         securityFee: (req.body.propertyModel === 'rental' || !req.body.propertyModel) ? (req.body.securityFee || null) : null,
+        paymentMethod: req.body.paymentMethod || null,
+        bankName: req.body.bankName || null,
+        accountNumber: req.body.accountNumber || null,
+        paybillNumber: req.body.paybillNumber || null,
         isAvailable: true,
       });
 
