@@ -21,6 +21,9 @@ export class PropertyFloor {
   @Column({ type: 'int' })
   floorNumber!: number;
 
+  @Column({ type: 'varchar', nullable: true })
+  floorName!: string; // e.g., "Ground Floor", "First Floor", "2nd Floor"
+
   @Column({ type: 'int' })
   unitsPerFloor!: number;
 

@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../User';
+import { PropertyFloor } from './PropertyFloor';
 
 @Entity('property_units')
 export class PropertyUnit {
@@ -19,6 +20,9 @@ export class PropertyUnit {
 
   @Column({ type: 'int' })
   unitNumber!: number;
+
+  @Column({ type: 'varchar', nullable: true })
+  unitName!: string; // e.g., "A001", "B101" - custom unit identifier
 
   @Column({ type: 'varchar' })
   roomType!: string; // e.g., "Bed-sitter", "1-Bedroom", "2-Bedroom", "3-Bedroom"
@@ -43,10 +47,11 @@ export class PropertyUnit {
   updatedAt!: Date;
 
   // Relations
-  @ManyToOne('PropertyFloor', (floor: any) => floor.units, {
+  @ManyToOne(() => PropertyFloor, (floor) => floor.units, {
     onDelete: 'CASCADE',
   })
-  floor!: any;
+  @JoinColumn({ name: 'floorId' })
+  floor!: PropertyFloor;
 
   @ManyToOne(() => User, {
     nullable: true,

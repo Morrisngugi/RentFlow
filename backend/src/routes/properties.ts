@@ -11,6 +11,7 @@ import { PropertyUnit } from '../entities/property/PropertyUnit';
 import { PropertyRoomTypePricing } from '../entities/property/PropertyRoomTypePricing';
 import { User } from '../entities/User';
 import { LandlordProfile } from '../entities/profile/LandlordProfile';
+import { generateFloorName } from '../utils/floorUtils';
 import bcrypt from 'bcrypt';
 import {
   ValidationError,
@@ -333,11 +334,13 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
           floors: property.floors.map((floor) => ({
             id: floor.id,
             floorNumber: floor.floorNumber,
+            floorName: floor.floorName,
             unitsPerFloor: floor.unitsPerFloor,
             units: floor.units.map((unit) => {
               const unitData: any = {
                 id: unit.id,
                 unitNumber: unit.unitNumber,
+                unitName: unit.unitName || `Unit ${unit.unitNumber}`,
                 roomType: unit.roomType,
                 status: unit.status,
                 currentTenantId: unit.currentTenantId,
@@ -468,6 +471,328 @@ router.delete('/:id', authenticate, async (req: AuthenticatedRequest, res: Respo
     }
   } catch (error: any) {
     console.error('❌ Delete property error:', error.message);
+    throw error;
+  }
+});
+
+/**
+ * POST /api/v1/properties/:propertyId/floors
+ * Add a new floor to the property
+ */
+router.post('/:propertyId/floors', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('📋 Adding floor to property:', req.params.propertyId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    const { floorNumber, unitsPerFloor, floorName } = req.body;
+
+    if (!floorNumber || !unitsPerFloor) {
+      throw new ValidationError('Floor number and units per floor are required');
+    }
+
+    try {
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const floorRepo = AppDataSource.getRepository(PropertyFloor);
+
+      const property = await propertyRepo.findOne({
+        where: { id: req.params.propertyId, agentId: req.user.userId },
+      });
+
+      if (!property) {
+        throw new NotFoundError('Property', { propertyId: req.params.propertyId });
+      }
+
+      const floor = new PropertyFloor();
+      floor.propertyId = property.id;
+      floor.floorNumber = floorNumber;
+      floor.unitsPerFloor = unitsPerFloor;
+      // Generate floor name automatically if not provided
+      floor.floorName = floorName || generateFloorName(floorNumber);
+
+      await floorRepo.save(floor);
+
+      console.log('✅ Floor added:', floor.id);
+      return res.status(201).json({
+        success: true,
+        message: 'Floor added successfully',
+        data: floor,
+      });
+    } catch (err: any) {
+      console.error('❌ Error adding floor:', err.message);
+      throw new DatabaseError(err.message, 'add_floor');
+    }
+  } catch (error: any) {
+    console.error('❌ Add floor error:', error.message);
+    throw error;
+  }
+});
+
+/**
+ * PUT /api/v1/properties/:propertyId/floors/:floorId
+ * Update floor details
+ */
+router.put('/:propertyId/floors/:floorId', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('📋 Updating floor:', req.params.floorId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    try {
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const floorRepo = AppDataSource.getRepository(PropertyFloor);
+
+      const property = await propertyRepo.findOne({
+        where: { id: req.params.propertyId, agentId: req.user.userId },
+      });
+
+      if (!property) {
+        throw new NotFoundError('Property', { propertyId: req.params.propertyId });
+      }
+
+      const floor = await floorRepo.findOne({
+        where: { id: req.params.floorId, propertyId: req.params.propertyId },
+      });
+
+      if (!floor) {
+        throw new NotFoundError('Floor', { floorId: req.params.floorId });
+      }
+
+      Object.assign(floor, req.body);
+      await floorRepo.save(floor);
+
+      console.log('✅ Floor updated:', floor.id);
+      return res.status(200).json({
+        success: true,
+        message: 'Floor updated successfully',
+        data: floor,
+      });
+    } catch (err: any) {
+      console.error('❌ Error updating floor:', err.message);
+      throw new DatabaseError(err.message, 'update_floor');
+    }
+  } catch (error: any) {
+    console.error('❌ Update floor error:', error.message);
+    throw error;
+  }
+});
+
+/**
+ * DELETE /api/v1/properties/:propertyId/floors/:floorId
+ * Delete floor (cascades to units)
+ */
+router.delete('/:propertyId/floors/:floorId', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('📋 Deleting floor:', req.params.floorId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    try {
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const floorRepo = AppDataSource.getRepository(PropertyFloor);
+
+      const property = await propertyRepo.findOne({
+        where: { id: req.params.propertyId, agentId: req.user.userId },
+      });
+
+      if (!property) {
+        throw new NotFoundError('Property', { propertyId: req.params.propertyId });
+      }
+
+      const floor = await floorRepo.findOne({
+        where: { id: req.params.floorId, propertyId: req.params.propertyId },
+        relations: ['units'],
+      });
+
+      if (!floor) {
+        throw new NotFoundError('Floor', { floorId: req.params.floorId });
+      }
+
+      await floorRepo.remove(floor);
+
+      console.log('✅ Floor deleted:', req.params.floorId);
+      return res.status(200).json({
+        success: true,
+        message: 'Floor deleted successfully',
+      });
+    } catch (err: any) {
+      console.error('❌ Error deleting floor:', err.message);
+      throw new DatabaseError(err.message, 'delete_floor');
+    }
+  } catch (error: any) {
+    console.error('❌ Delete floor error:', error.message);
+    throw error;
+  }
+});
+
+/**
+ * POST /api/v1/properties/:propertyId/units
+ * Add a new unit to a floor
+ */
+router.post('/:propertyId/units', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('📋 Adding unit to property:', req.params.propertyId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    const { unitNumber, roomType, status, floorId, unitName } = req.body;
+
+    if (!unitNumber || !roomType || !status || !floorId) {
+      throw new ValidationError('Unit number, room type, status, and floor ID are required');
+    }
+
+    try {
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const floorRepo = AppDataSource.getRepository(PropertyFloor);
+      const unitRepo = AppDataSource.getRepository(PropertyUnit);
+
+      const property = await propertyRepo.findOne({
+        where: { id: req.params.propertyId, agentId: req.user.userId },
+      });
+
+      if (!property) {
+        throw new NotFoundError('Property', { propertyId: req.params.propertyId });
+      }
+
+      const floor = await floorRepo.findOne({
+        where: { id: floorId, propertyId: req.params.propertyId },
+      });
+
+      if (!floor) {
+        throw new NotFoundError('Floor', { floorId });
+      }
+
+      const unit = new PropertyUnit();
+      unit.floorId = floorId;
+      unit.unitNumber = unitNumber;
+      unit.unitName = unitName || `Unit ${unitNumber}`;
+      unit.roomType = roomType;
+      unit.status = status;
+
+      await unitRepo.save(unit);
+
+      console.log('✅ Unit added:', unit.id);
+      return res.status(201).json({
+        success: true,
+        message: 'Unit added successfully',
+        data: unit,
+      });
+    } catch (err: any) {
+      console.error('❌ Error adding unit:', err.message);
+      throw new DatabaseError(err.message, 'add_unit');
+    }
+  } catch (error: any) {
+    console.error('❌ Add unit error:', error.message);
+    throw error;
+  }
+});
+
+/**
+ * PUT /api/v1/properties/:propertyId/units/:unitId
+ * Update unit details
+ */
+router.put('/:propertyId/units/:unitId', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('📋 Updating unit:', req.params.unitId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    try {
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const unitRepo = AppDataSource.getRepository(PropertyUnit);
+
+      const property = await propertyRepo.findOne({
+        where: { id: req.params.propertyId, agentId: req.user.userId },
+      });
+
+      if (!property) {
+        throw new NotFoundError('Property', { propertyId: req.params.propertyId });
+      }
+
+      const unit = await unitRepo.findOne({
+        where: { id: req.params.unitId },
+        relations: ['floor'],
+      });
+
+      if (!unit || unit.floor.propertyId !== req.params.propertyId) {
+        throw new NotFoundError('Unit', { unitId: req.params.unitId });
+      }
+
+      Object.assign(unit, req.body);
+      await unitRepo.save(unit);
+
+      console.log('✅ Unit updated:', unit.id);
+      return res.status(200).json({
+        success: true,
+        message: 'Unit updated successfully',
+        data: unit,
+      });
+    } catch (err: any) {
+      console.error('❌ Error updating unit:', err.message);
+      throw new DatabaseError(err.message, 'update_unit');
+    }
+  } catch (error: any) {
+    console.error('❌ Update unit error:', error.message);
+    throw error;
+  }
+});
+
+/**
+ * DELETE /api/v1/properties/:propertyId/units/:unitId
+ * Delete unit
+ */
+router.delete('/:propertyId/units/:unitId', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('📋 Deleting unit:', req.params.unitId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    try {
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const unitRepo = AppDataSource.getRepository(PropertyUnit);
+
+      const property = await propertyRepo.findOne({
+        where: { id: req.params.propertyId, agentId: req.user.userId },
+      });
+
+      if (!property) {
+        throw new NotFoundError('Property', { propertyId: req.params.propertyId });
+      }
+
+      const unit = await unitRepo.findOne({
+        where: { id: req.params.unitId },
+        relations: ['floor'],
+      });
+
+      if (!unit || unit.floor.propertyId !== req.params.propertyId) {
+        throw new NotFoundError('Unit', { unitId: req.params.unitId });
+      }
+
+      await unitRepo.remove(unit);
+
+      console.log('✅ Unit deleted:', req.params.unitId);
+      return res.status(200).json({
+        success: true,
+        message: 'Unit deleted successfully',
+      });
+    } catch (err: any) {
+      console.error('❌ Error deleting unit:', err.message);
+      throw new DatabaseError(err.message, 'delete_unit');
+    }
+  } catch (error: any) {
+    console.error('❌ Delete unit error:', error.message);
     throw error;
   }
 });

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/common/Button';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Edit2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
@@ -12,6 +12,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1
 interface Unit {
   id: string;
   unitNumber: number;
+  unitName?: string;
   roomType: string;
   status: 'vacant' | 'occupied' | 'maintenance';
   currentTenantId?: string;
@@ -25,6 +26,7 @@ interface Unit {
 interface Floor {
   id: string;
   floorNumber: number;
+  floorName?: string;
   unitsPerFloor: number;
   units: Unit[];
 }
@@ -64,6 +66,17 @@ export default function PropertyDetailsPage() {
 
   const [property, setProperty] = useState<PropertyDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showRentModal, setShowRentModal] = useState(false);
+  const [showAddFloor, setShowAddFloor] = useState(false);
+  const [showEditFloor, setShowEditFloor] = useState<string | null>(null);
+  const [showEditUnit, setShowEditUnit] = useState<string | null>(null);
+  const [showAddUnit, setShowAddUnit] = useState<string | null>(null);
+
+  // Form states
+  const [rentForm, setRentForm] = useState({ monthlyRent: 0, depositAmount: 0 });
+  const [floorForm, setFloorForm] = useState({ floorNumber: 0, unitsPerFloor: 0, floorName: '' });
+  const [unitForm, setUnitForm] = useState({ unitNumber: 0, unitName: '', roomType: '', status: 'vacant' as 'vacant' | 'occupied' | 'maintenance' });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (propertyId) {
@@ -91,6 +104,10 @@ export default function PropertyDetailsPage() {
 
       const result = await response.json();
       setProperty(result.data);
+      setRentForm({
+        monthlyRent: result.data.monthlyRent || 0,
+        depositAmount: result.data.depositAmount || 0,
+      });
     } catch (error) {
       console.error('Error fetching property details:', error);
       toast.error('Failed to load property details');
@@ -99,7 +116,187 @@ export default function PropertyDetailsPage() {
     }
   };
 
+  // Rent Details Handlers
+  const handleUpdateRent = async () => {
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${API_URL}/properties/${propertyId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          monthlyRent: rentForm.monthlyRent,
+          depositAmount: rentForm.depositAmount,
+        }),
+      });
 
+      if (!response.ok) throw new Error('Failed to update rent details');
+
+      toast.success('Rent details updated successfully');
+      setShowRentModal(false);
+      fetchPropertyDetails();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update rent details';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Floor Handlers
+  const handleAddFloor = async () => {
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${API_URL}/properties/${propertyId}/floors`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(floorForm),
+      });
+
+      if (!response.ok) throw new Error('Failed to add floor');
+
+      toast.success('Floor added successfully');
+      setShowAddFloor(false);
+      setFloorForm({ floorNumber: 0, unitsPerFloor: 0, floorName: '' });
+      fetchPropertyDetails();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add floor';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateFloor = async () => {
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${API_URL}/properties/${propertyId}/floors/${showEditFloor}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(floorForm),
+      });
+
+      if (!response.ok) throw new Error('Failed to update floor');
+
+      toast.success('Floor updated successfully');
+      setShowEditFloor(null);
+      setFloorForm({ floorNumber: 0, unitsPerFloor: 0, floorName: '' });
+      fetchPropertyDetails();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update floor';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteFloor = async (floorId: string) => {
+    if (!confirm('Are you sure you want to delete this floor? All units on this floor will be deleted.')) return;
+
+    try {
+      const response = await fetch(`${API_URL}/properties/${propertyId}/floors/${floorId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) throw new Error('Failed to delete floor');
+
+      toast.success('Floor deleted successfully');
+      fetchPropertyDetails();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete floor';
+      toast.error(message);
+    }
+  };
+
+  // Unit Handlers
+  const handleAddUnit = async () => {
+    if (!showAddUnit) return;
+    
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${API_URL}/properties/${propertyId}/units`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          ...unitForm,
+          floorId: showAddUnit,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to add unit');
+
+      toast.success('Unit added successfully');
+      setShowAddUnit(null);
+      setUnitForm({ unitNumber: 0, unitName: '', roomType: '', status: 'vacant' });
+      fetchPropertyDetails();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add unit';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateUnit = async () => {
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${API_URL}/properties/${propertyId}/units/${showEditUnit}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(unitForm),
+      });
+
+      if (!response.ok) throw new Error('Failed to update unit');
+
+      toast.success('Unit updated successfully');
+      setShowEditUnit(null);
+      setUnitForm({ unitNumber: 0, unitName: '', roomType: '', status: 'vacant' });
+      fetchPropertyDetails();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update unit';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteUnit = async (unitId: string) => {
+    if (!confirm('Are you sure you want to delete this unit?')) return;
+
+    try {
+      const response = await fetch(`${API_URL}/properties/${propertyId}/units/${unitId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) throw new Error('Failed to delete unit');
+
+      toast.success('Unit deleted successfully');
+      fetchPropertyDetails();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete unit';
+      toast.error(message);
+    }
+  };
 
   const handleRemoveTenant = async (unitId: string) => {
     if (!confirm('Are you sure you want to remove the tenant from this unit?')) return;
@@ -201,7 +398,16 @@ export default function PropertyDetailsPage() {
         <div className="lg:col-span-2 bg-white rounded-lg shadow-md p-6 space-y-6">
           {/* Property Details Section */}
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Property Information</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Property Information</h2>
+              <button
+                onClick={() => setShowRentModal(true)}
+                className="text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              >
+                <Edit2 size={18} />
+                Edit Rent
+              </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-gray-600 text-sm">Property Type</p>
@@ -262,7 +468,16 @@ export default function PropertyDetailsPage() {
 
       {/* Floors and Units */}
       <div className="space-y-6">
-        <h2 className="text-2xl font-semibold text-gray-900">Floors & Units</h2>
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-semibold text-gray-900">Floors & Units</h2>
+          <button
+            onClick={() => setShowAddFloor(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Add Floor
+          </button>
+        </div>
 
         {!property?.floors || property.floors.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
@@ -271,7 +486,28 @@ export default function PropertyDetailsPage() {
         ) : (
           property.floors.map((floor) => (
             <div key={floor.id} className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Floor {floor.floorNumber}</h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">{floor.floorName || `Floor ${floor.floorNumber}`}</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setFloorForm({ floorNumber: floor.floorNumber, unitsPerFloor: floor.unitsPerFloor, floorName: floor.floorName || '' });
+                      setShowEditFloor(floor.id);
+                    }}
+                    className="text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <Edit2 size={16} />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteFloor(floor.id)}
+                    className="text-red-600 hover:text-red-700 flex items-center gap-1"
+                  >
+                    <Trash2 size={16} />
+                    Delete
+                  </button>
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {floor.units.map((unit) => (
@@ -283,12 +519,23 @@ export default function PropertyDetailsPage() {
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="font-semibold">Unit {unit.unitNumber}</p>
+                        <p className="font-semibold">{unit.unitName || `Unit ${unit.unitNumber}`}</p>
                         <p className="text-sm opacity-75">{unit.roomType}</p>
                       </div>
-                      <span className="text-xs font-semibold uppercase px-2 py-1 rounded bg-opacity-30 bg-black">
-                        {unit.status}
-                      </span>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => {
+                            setUnitForm({ unitNumber: unit.unitNumber, unitName: unit.unitName || '', roomType: unit.roomType, status: unit.status });
+                            setShowEditUnit(unit.id);
+                          }}
+                          className="text-xs bg-opacity-20 bg-black hover:bg-opacity-30 p-1 rounded"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <span className="text-xs font-semibold uppercase px-2 py-1 rounded bg-opacity-30 bg-black">
+                          {unit.status}
+                        </span>
+                      </div>
                     </div>
                     {unit.currentTenantId && (
                       <p className="text-xs opacity-75 mt-3">
@@ -320,9 +567,29 @@ export default function PropertyDetailsPage() {
                           Remove
                         </button>
                       )}
+                      <button
+                        onClick={() => handleDeleteUnit(unit.id)}
+                        className="text-xs font-semibold px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
+                
+                {/* Add Unit Button */}
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 flex items-center justify-center min-h-32">
+                  <button
+                    onClick={() => {
+                      setUnitForm({ unitNumber: 0, unitName: '', roomType: '', status: 'vacant' });
+                      setShowAddUnit(floor.id);
+                    }}
+                    className="text-center text-gray-600 hover:text-gray-900 flex flex-col items-center gap-2"
+                  >
+                    <Plus size={24} />
+                    <span className="font-semibold">Add Unit</span>
+                  </button>
+                </div>
               </div>
 
               {floor.units.length === 0 && (
@@ -343,7 +610,354 @@ export default function PropertyDetailsPage() {
         </Link>
       </div>
 
+      {/* ===== MODALS ===== */}
+      
+      {/* Edit Rent Details Modal */}
+      {showRentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Edit Rent Details</h3>
+              <button
+                onClick={() => setShowRentModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Rent (KES)</label>
+                <input
+                  type="number"
+                  value={rentForm.monthlyRent}
+                  onChange={(e) => setRentForm({ ...rentForm, monthlyRent: parseFloat(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deposit Amount (KES)</label>
+                <input
+                  type="number"
+                  value={rentForm.depositAmount}
+                  onChange={(e) => setRentForm({ ...rentForm, depositAmount: parseFloat(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setShowRentModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateRent}
+                disabled={submitting}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+              >
+                {submitting ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Floor Modal */}
+      {showAddFloor && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Add New Floor</h3>
+              <button
+                onClick={() => setShowAddFloor(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Floor Number</label>
+                <input
+                  type="number"
+                  value={floorForm.floorNumber}
+                  onChange={(e) => setFloorForm({ ...floorForm, floorNumber: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Floor Name (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Ground Floor, First Floor"
+                  value={floorForm.floorName}
+                  onChange={(e) => setFloorForm({ ...floorForm, floorName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Units Per Floor</label>
+                <input
+                  type="number"
+                  value={floorForm.unitsPerFloor}
+                  onChange={(e) => setFloorForm({ ...floorForm, unitsPerFloor: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setShowAddFloor(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddFloor}
+                disabled={submitting}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+              >
+                {submitting ? 'Adding...' : 'Add Floor'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Floor Modal */}
+      {showEditFloor && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Edit Floor</h3>
+              <button
+                onClick={() => setShowEditFloor(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Floor Number</label>
+                <input
+                  type="number"
+                  value={floorForm.floorNumber}
+                  onChange={(e) => setFloorForm({ ...floorForm, floorNumber: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Floor Name (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Ground Floor, First Floor"
+                  value={floorForm.floorName}
+                  onChange={(e) => setFloorForm({ ...floorForm, floorName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Units Per Floor</label>
+                <input
+                  type="number"
+                  value={floorForm.unitsPerFloor}
+                  onChange={(e) => setFloorForm({ ...floorForm, unitsPerFloor: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setShowEditFloor(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateFloor}
+                disabled={submitting}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+              >
+                {submitting ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Unit Modal */}
+      {showAddUnit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Add New Unit</h3>
+              <button
+                onClick={() => setShowAddUnit(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Unit Number</label>
+                <input
+                  type="number"
+                  value={unitForm.unitNumber}
+                  onChange={(e) => setUnitForm({ ...unitForm, unitNumber: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Unit Name (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., A001, B101"
+                  value={unitForm.unitName}
+                  onChange={(e) => setUnitForm({ ...unitForm, unitName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Room Type</label>
+                <input
+                  type="text"
+                  placeholder="e.g., 1BR, 2BR, Studio"
+                  value={unitForm.roomType}
+                  onChange={(e) => setUnitForm({ ...unitForm, roomType: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={unitForm.status}
+                  onChange={(e) => setUnitForm({ ...unitForm, status: e.target.value as any })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="vacant">Vacant</option>
+                  <option value="occupied">Occupied</option>
+                  <option value="maintenance">Maintenance</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setShowAddUnit(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddUnit}
+                disabled={submitting}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+              >
+                {submitting ? 'Adding...' : 'Add Unit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Unit Modal */}
+      {showEditUnit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Edit Unit</h3>
+              <button
+                onClick={() => setShowEditUnit(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Unit Number</label>
+                <input
+                  type="number"
+                  value={unitForm.unitNumber}
+                  onChange={(e) => setUnitForm({ ...unitForm, unitNumber: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Unit Name (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., A001, B101"
+                  value={unitForm.unitName}
+                  onChange={(e) => setUnitForm({ ...unitForm, unitName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Room Type</label>
+                <input
+                  type="text"
+                  placeholder="e.g., 1BR, 2BR, Studio"
+                  value={unitForm.roomType}
+                  onChange={(e) => setUnitForm({ ...unitForm, roomType: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={unitForm.status}
+                  onChange={(e) => setUnitForm({ ...unitForm, status: e.target.value as any })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="vacant">Vacant</option>
+                  <option value="occupied">Occupied</option>
+                  <option value="maintenance">Maintenance</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setShowEditUnit(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateUnit}
+                disabled={submitting}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+              >
+                {submitting ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
