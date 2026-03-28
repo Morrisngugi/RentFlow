@@ -189,41 +189,47 @@ export default function AgentDetailPage() {
         </div>
 
         {/* Action Buttons Row - Always Visible & Prominent */}
-        <div className="flex gap-4 flex-wrap bg-gray-50 p-5 rounded-lg border-2 border-gray-200 mb-6">
+        <div className="flex gap-4 flex-wrap bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-xl border-2 border-blue-300 mb-6 shadow-md z-10 relative">
           <button
             onClick={handleEdit}
-            className="px-8 py-3 bg-rentflow-blue text-white rounded-lg font-bold text-base hover:bg-blue-700 hover:shadow-lg active:scale-95 transition-all duration-200 flex items-center gap-2 shadow-lg border-2 border-blue-600"
+            style={{ backgroundColor: '#007bff' }}
+            className="px-10 py-4 bg-rentflow-blue text-white rounded-lg font-bold text-base hover:bg-blue-700 hover:shadow-xl active:scale-95 transition-all duration-200 flex items-center gap-2 shadow-lg border-2 border-rentflow-blue"
           >
             ✏️ Edit Agent
           </button>
           <button
             onClick={() => setShowDeactivateConfirm(true)}
             disabled={actionLoading}
-            className={`px-8 py-3 rounded-lg font-bold text-base transition-all duration-200 flex items-center gap-2 shadow-lg border-2 ${
+            className={`px-10 py-4 rounded-lg font-bold text-base transition-all duration-200 flex items-center gap-2 shadow-lg border-2 ${
               agent.isActive
-                ? 'bg-orange-50 border-orange-500 text-orange-700 hover:bg-orange-100 hover:shadow-lg active:scale-95'
-                : 'bg-green-50 border-green-500 text-green-700 hover:bg-green-100 hover:shadow-lg active:scale-95'
+                ? 'bg-orange-100 border-orange-500 text-orange-800 hover:bg-orange-200 hover:shadow-xl active:scale-95'
+                : 'bg-green-100 border-green-500 text-green-800 hover:bg-green-200 hover:shadow-xl active:scale-95'
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {agent.isActive ? '🔒 Deactivate' : '🔓 Activate'}
           </button>
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="px-8 py-3 bg-red-50 border-2 border-red-500 text-red-700 rounded-lg font-bold text-base hover:bg-red-100 hover:shadow-lg active:scale-95 transition-all duration-200 flex items-center gap-2 shadow-lg"
+            className="px-10 py-4 bg-red-100 border-2 border-red-500 text-red-800 rounded-lg font-bold text-base hover:bg-red-200 hover:shadow-xl active:scale-95 transition-all duration-200 flex items-center gap-2 shadow-lg"
           >
             🗑️ Delete Agent
           </button>
         </div>
       </div>
 
-      {/* Deactivate Confirmation Dialog */}
+      {/* Deactivate Confirmation Dialog - Always Visible */}
       {showDeactivateConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 rounded-lg">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              {agent.isActive ? 'Deactivate Agent' : 'Activate Agent'}
-            </h2>
-            <p className="text-gray-600 mb-6">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[9999] rounded-lg !visible opacity-100">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md border-2 border-blue-500 transform scale-100 !visible opacity-100">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                <span className="text-xl">⚠️</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {agent.isActive ? 'Deactivate Agent' : 'Activate Agent'}
+              </h2>
+            </div>
+            <p className="text-gray-700 mb-8 leading-relaxed font-medium">
               {agent.isActive
                 ? `Are you sure you want to deactivate ${agent.firstName} ${agent.lastName}? They will no longer be able to access the system.`
                 : `Are you sure you want to activate ${agent.firstName} ${agent.lastName}? They will be able to access the system again.`}
@@ -232,14 +238,14 @@ export default function AgentDetailPage() {
               <button
                 onClick={handleToggleStatus}
                 disabled={actionLoading}
-                className="flex-1 px-4 py-2 bg-rentflow-blue text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-6 py-3 bg-rentflow-blue text-white rounded-lg font-bold hover:bg-blue-700 hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-blue-600 !visible opacity-100"
               >
                 {actionLoading ? 'Processing...' : agent.isActive ? 'Deactivate' : 'Activate'}
               </button>
               <button
                 onClick={() => setShowDeactivateConfirm(false)}
                 disabled={actionLoading}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-900 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-6 py-3 border-2 border-gray-400 text-gray-900 rounded-lg font-bold hover:bg-gray-50 hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed !visible opacity-100"
               >
                 Cancel
               </button>
@@ -248,24 +254,29 @@ export default function AgentDetailPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog - Always Visible */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 rounded-lg">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Delete Agent</h2>
-            <p className="text-gray-600 mb-6">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[9999] rounded-lg !visible opacity-100">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md border-2 border-red-500 transform scale-100 !visible opacity-100">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <span className="text-xl">🗑️</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Delete Agent</h2>
+            </div>
+            <p className="text-gray-700 mb-8 leading-relaxed font-medium">
               Are you sure you want to delete {agent.firstName} {agent.lastName}? This action cannot be undone.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={handleDelete}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 hover:shadow-lg transition-all duration-200 border-2 border-red-700 !visible opacity-100"
               >
                 Delete
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-900 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                className="flex-1 px-6 py-3 border-2 border-gray-400 text-gray-900 rounded-lg font-bold hover:bg-gray-50 hover:shadow-lg transition-all duration-200 !visible opacity-100"
               >
                 Cancel
               </button>
