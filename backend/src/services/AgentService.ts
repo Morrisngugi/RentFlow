@@ -1,5 +1,8 @@
 import { User } from '../entities/User';
 import { AgentProfile } from '../entities/profile/AgentProfile';
+import { Property } from '../entities/property/Property';
+import { PropertyFloor } from '../entities/property/PropertyFloor';
+import { PropertyUnit } from '../entities/property/PropertyUnit';
 import { AppDataSource } from '../config/database';
 
 export interface AgentListResponse {
@@ -16,6 +19,20 @@ export interface AgentListResponse {
   updatedAt: Date;
 }
 
+export interface PropertyWithUnitsCount {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  propertyType: string;
+  unitsCount: number;
+}
+
+export interface AgentDetailedResponse extends AgentListResponse {
+  propertiesManaged: number;
+  propertyDetails: PropertyWithUnitsCount[];
+}
+
 export interface CreateAgentProfileRequest {
   userId: string;
   officeName: string;
@@ -26,6 +43,9 @@ export interface CreateAgentProfileRequest {
 export class AgentService {
   private userRepository = AppDataSource.getRepository(User);
   private agentProfileRepository = AppDataSource.getRepository(AgentProfile);
+  private propertyRepository = AppDataSource.getRepository(Property);
+  private propertyFloorRepository = AppDataSource.getRepository(PropertyFloor);
+  private propertyUnitRepository = AppDataSource.getRepository(PropertyUnit);
 
   /**
    * Get all agents (users with role = 'agent')
@@ -77,6 +97,59 @@ export class AgentService {
       officeName: agentProfile.officeName,
       officeLocation: agentProfile.officeLocation,
       isActive: agentProfile.isActive,
+      createdAt: agentProfile.createdAt,
+      updatedAt: agentProfile.updatedAt,
+    };
+  }
+
+  /**
+   * Get agent details with properties and units count
+   */
+  async getAgentDetailedInfo(agentId: string): Promise<AgentDetailedResponse | null> {
+    const agentProfile = await this.agentProfileRepository.findOne({
+      where: { id: agentId },
+      relations: ['user'],
+    });
+
+    if (!agentProfile) {
+      return null;
+    }
+
+    // Get all properties managed by this agent
+    const properties = await this.propertyRepository.find({
+      where: { agentId: agentProfile.userId },
+      relations: ['floors', 'floors.units'],
+    });
+
+    // Calculate units count per property
+    const propertyDetails: PropertyWithUnitsCount[] = properties.map(property => {
+      const unitsCount = (property.floors || []).reduce((total, floor) => {
+        return total + (floor.units?.length || 0);
+      }, 0);
+
+      return {
+        id: property.id,
+        name: property.name,
+        address: property.address,
+        city: property.city,
+        propertyType: property.propertyType || 'N/A',
+        unitsCount,
+      };
+    });
+
+    const user = agentProfile.user;
+    return {
+      id: agentProfile.id,
+      userId: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      officeName: agentProfile.officeName,
+      officeLocation: agentProfile.officeLocation,
+      isActive: agentProfile.isActive,
+      propertiesManaged: properties.length,
+      propertyDetails,
       createdAt: agentProfile.createdAt,
       updatedAt: agentProfile.updatedAt,
     };

@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { authService } from '../services/AuthService';
-import { authenticate, AuthenticatedRequest } from '../middleware/auth';
+import { authenticate, AuthenticatedRequest, checkUserActive } from '../middleware/auth';
 import {
   RegisterRequest,
   LoginRequest,
@@ -128,7 +128,7 @@ router.post('/login', async (req: AuthenticatedRequest, res: Response) => {
  * GET /api/v1/auth/profile
  * Get authenticated user's profile
  */
-router.get('/profile', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/profile', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
   try {
     console.log('📋 Fetching profile for user:', req.user?.userId);
     
@@ -172,7 +172,7 @@ router.get('/profile', authenticate, async (req: AuthenticatedRequest, res: Resp
  * PUT /api/v1/auth/profile
  * Update authenticated user's profile
  */
-router.put('/profile', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.put('/profile', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
   try {
     console.log('📋 Updating profile for user:', req.user?.userId);
     

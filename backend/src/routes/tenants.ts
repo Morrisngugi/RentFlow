@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { authenticate, AuthenticatedRequest } from '../middleware/auth';
+import { authenticate, AuthenticatedRequest, checkUserActive } from '../middleware/auth';
 import { AppDataSource } from '../config/database';
 import { User } from '../entities/User';
 import { TenantProfile } from '../entities/profile/TenantProfile';
@@ -18,7 +18,7 @@ const router = Router();
  * POST /api/v1/tenants
  * Create a new tenant with full profile
  */
-router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
   try {
     console.log('📋 Creating new tenant');
 

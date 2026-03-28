@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { In } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { authenticate, AuthenticatedRequest } from '../middleware/auth';
+import { authenticate, AuthenticatedRequest, checkUserActive } from '../middleware/auth';
 import { CreatePropertyRequest, UpdatePropertyRequest } from '../types/property.dto';
 import { AppDataSource } from '../config/database';
 import { Property } from '../entities/property/Property';
@@ -35,7 +35,7 @@ async function validateRequest(data: any, dtoClass: any) {
  * POST /api/v1/properties
  * Create a new property with floors, units, and landlord
  */
-router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
   try {
     console.log('📋 Creating new property for agent:', req.user?.userId);
     

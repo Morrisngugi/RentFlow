@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { agentService } from '../services/AgentService';
-import { authenticate, AuthenticatedRequest } from '../middleware/auth';
+import { authenticate, AuthenticatedRequest, checkUserActive } from '../middleware/auth';
 import { CreateAgentProfileRequest } from '../services/AgentService';
 
 const router = Router();
@@ -11,7 +11,7 @@ const router = Router();
  * GET /api/v1/agents
  * Get all agents
  */
-router.get('/', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
   try {
     console.log('📝 [GET /agents] Fetching all agents...');
     
@@ -53,8 +53,9 @@ router.get('/', authenticate, async (req: AuthenticatedRequest, res: Response) =
 /**
  * GET /api/v1/agents/:id
  * Get agent by ID
+ * Query params: ?detailed=true (includes properties and units count)
  */
-router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({
@@ -67,7 +68,14 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
     }
 
     const { id } = req.params;
-    const agent = await agentService.getAgentById(id);
+    const { detailed } = req.query;
+
+    let agent;
+    if (detailed === 'true') {
+      agent = await agentService.getAgentDetailedInfo(id);
+    } else {
+      agent = await agentService.getAgentById(id);
+    }
 
     if (!agent) {
       return res.status(404).json({
@@ -98,7 +106,7 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
  * POST /api/v1/agents
  * Create or update agent profile
  */
-router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
   try {
     console.log('📝 [POST /agents] Creating/updating agent profile...', { userId: req.body.userId });
     
@@ -163,7 +171,7 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response) 
  * PATCH /api/v1/agents/:id/status
  * Update agent status (active/inactive)
  */
-router.patch('/:id/status', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.patch('/:id/status', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({
@@ -211,7 +219,7 @@ router.patch('/:id/status', authenticate, async (req: AuthenticatedRequest, res:
  * DELETE /api/v1/agents/:id
  * Delete agent profile
  */
-router.delete('/:id', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:id', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({

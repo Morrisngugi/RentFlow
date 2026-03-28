@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { authenticate, AuthenticatedRequest } from '../middleware/auth';
+import { authenticate, AuthenticatedRequest, checkUserActive } from '../middleware/auth';
 import { AppDataSource } from '../config/database';
 import { User } from '../entities/User';
 import { LandlordProfile } from '../entities/profile/LandlordProfile';
@@ -12,7 +12,7 @@ const router = Router();
  * POST /api/v1/landlords
  * Create a new landlord with profile
  */
-router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const {
       firstName,
