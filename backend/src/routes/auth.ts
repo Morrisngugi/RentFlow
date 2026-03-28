@@ -2,13 +2,19 @@ import { Router, Response } from 'express';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { authService } from '../services/AuthService';
-import { authenticate, AuthenticatedRequest } from '../middleware/auth';
+import { authenticate, AuthenticatedRequest, checkUserActive } from '../middleware/auth';
 import {
   RegisterRequest,
   LoginRequest,
   ChangePasswordRequest,
   UpdateProfileRequest,
 } from '../types/auth.dto';
+import {
+  ValidationError,
+  AuthenticationError,
+  NotFoundError,
+  ConflictError,
+} from '../errors/AppError';
 
 const router = Router();
 
@@ -26,21 +32,18 @@ async function validateRequest(data: any, dtoClass: any) {
  */
 router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('📋 Register request received for:', req.body.email);
+    
     const errors = await validateRequest(req.body, RegisterRequest);
     if (errors.length > 0) {
-      const messages = errors
-        .flatMap((err) => Object.values(err.constraints || {}));
-      return res.status(400).json({
-        error: {
-          status: 400,
-          message: 'Validation failed',
-          code: 'VALIDATION_ERROR',
-          details: messages,
-        },
-      });
+      const messages = errors.flatMap((err) => Object.values(err.constraints || {}));
+      console.warn('❌ Validation errors:', messages);
+      throw new ValidationError('Registration validation failed', { messages });
     }
 
     const { email, phoneNumber, firstName, lastName, idNumber, password, role } = req.body;
+    
+    console.log('🔐 Processing registration for:', email);
     const result = await authService.register({
       email,
       phoneNumber,
@@ -51,19 +54,33 @@ router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
       role: role || 'tenant',
     });
 
+    console.log('✅ User registered successfully:', email);
     return res.status(201).json({
+      success: true,
       message: 'User registered successfully',
       data: result,
     });
   } catch (error: any) {
-    const statusCode = error.message.includes('already') ? 400 : 500;
-    return res.status(statusCode).json({
-      error: {
-        status: statusCode,
-        message: error.message,
-        code: 'REGISTRATION_ERROR',
-      },
+    console.error('❌ Registration error:', {
+      email: req.body?.email,
+      error: error.message,
+      code: error.code,
     });
+
+    if (error.message.includes('already')) {
+      return res.status(409).json({
+        success: false,
+        error: {
+          status: 409,
+          code: 'EMAIL_CONFLICT',
+          message: 'Email is already registered',
+          details: { email: req.body?.email },
+        },
+      });
+    }
+
+    // Let error handler middleware handle it
+    throw error;
   }
 });
 
@@ -73,35 +90,37 @@ router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
  */
 router.post('/login', async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('📋 Login request for:', req.body.email);
+    
     const errors = await validateRequest(req.body, LoginRequest);
     if (errors.length > 0) {
-      const messages = errors
-        .flatMap((err) => Object.values(err.constraints || {}));
-      return res.status(400).json({
-        error: {
-          status: 400,
-          message: 'Validation failed',
-          code: 'VALIDATION_ERROR',
-          details: messages,
-        },
-      });
+      const messages = errors.flatMap((err) => Object.values(err.constraints || {}));
+      console.warn('❌ Login validation errors:', messages);
+      throw new ValidationError('Login validation failed', { messages });
     }
 
     const { email, password } = req.body;
+    
+    console.log('🔍 Authenticating user:', email);
     const result = await authService.login(email, password);
 
+    console.log('✅ Login successful:', email);
     return res.status(200).json({
+      success: true,
       message: 'Login successful',
       data: result,
     });
   } catch (error: any) {
-    return res.status(401).json({
-      error: {
-        status: 401,
-        message: error.message,
-        code: 'LOGIN_ERROR',
-      },
+    console.error('❌ Login error:', {
+      email: req.body?.email,
+      error: error.message,
     });
+
+    if (error.message.includes('not found') || error.message.includes('incorrect')) {
+      throw new AuthenticationError('Invalid email or password');
+    }
+
+    throw error;
   }
 });
 
@@ -109,30 +128,22 @@ router.post('/login', async (req: AuthenticatedRequest, res: Response) => {
  * GET /api/v1/auth/profile
  * Get authenticated user's profile
  */
-router.get('/profile', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/profile', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('📋 Fetching profile for user:', req.user?.userId);
+    
     if (!req.user) {
-      return res.status(401).json({
-        error: {
-          status: 401,
-          message: 'Unauthorized',
-          code: 'UNAUTHORIZED',
-        },
-      });
+      throw new AuthenticationError('No user context found');
     }
 
     const user = await authService.getUserById(req.user.userId);
     if (!user) {
-      return res.status(404).json({
-        error: {
-          status: 404,
-          message: 'User not found',
-          code: 'NOT_FOUND',
-        },
-      });
+      throw new NotFoundError('User', { userId: req.user.userId });
     }
 
+    console.log('✅ Profile retrieved for:', user.email);
     return res.status(200).json({
+      success: true,
       message: 'Profile retrieved successfully',
       data: {
         id: user.id,
@@ -149,13 +160,11 @@ router.get('/profile', authenticate, async (req: AuthenticatedRequest, res: Resp
       },
     });
   } catch (error: any) {
-    return res.status(500).json({
-      error: {
-        status: 500,
-        message: error.message,
-        code: 'PROFILE_FETCH_ERROR',
-      },
+    console.error('❌ Profile fetch error:', {
+      userId: req.user?.userId,
+      error: error.message,
     });
+    throw error;
   }
 });
 
@@ -163,40 +172,27 @@ router.get('/profile', authenticate, async (req: AuthenticatedRequest, res: Resp
  * PUT /api/v1/auth/profile
  * Update authenticated user's profile
  */
-router.put('/profile', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.put('/profile', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('📋 Updating profile for user:', req.user?.userId);
+    
     if (!req.user) {
-      return res.status(401).json({
-        error: {
-          status: 401,
-          message: 'Unauthorized',
-          code: 'UNAUTHORIZED',
-        },
-      });
+      throw new AuthenticationError('No user context found');
     }
 
     const errors = await validateRequest(req.body, UpdateProfileRequest);
     if (errors.length > 0) {
-      const messages = errors
-        .flatMap((err) => Object.values(err.constraints || {}));
-      console.error('❌ Profile update validation failed:', {
-        userId: req.user?.userId,
-        payload: req.body,
-        errors: messages,
-      });
-      return res.status(400).json({
-        error: {
-          status: 400,
-          message: 'Validation failed',
-          code: 'VALIDATION_ERROR',
-          details: messages,
-        },
-      });
+      const messages = errors.flatMap((err) => Object.values(err.constraints || {}));
+      console.warn('❌ Profile update validation errors:', messages);
+      throw new ValidationError('Profile update validation failed', { messages });
     }
 
+    console.log('✏️ Saving profile changes for:', req.user.userId);
     const updatedUser = await authService.updateProfile(req.user.userId, req.body);
 
+    console.log('✅ Profile updated for:', updatedUser.email);
     return res.status(200).json({
+      success: true,
       message: 'Profile updated successfully',
       data: {
         id: updatedUser.id,
@@ -217,13 +213,7 @@ router.put('/profile', authenticate, async (req: AuthenticatedRequest, res: Resp
       error: error.message,
       stack: error.stack,
     });
-    return res.status(500).json({
-      error: {
-        status: 500,
-        message: error.message,
-        code: 'PROFILE_UPDATE_ERROR',
-      },
-    });
+    throw error;
   }
 });
 
@@ -233,50 +223,40 @@ router.put('/profile', authenticate, async (req: AuthenticatedRequest, res: Resp
  */
 router.post('/change-password', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    console.log('📋 Change password request for:', req.user?.userId);
+    
     if (!req.user) {
-      return res.status(401).json({
-        error: {
-          status: 401,
-          message: 'Unauthorized',
-          code: 'UNAUTHORIZED',
-        },
-      });
+      throw new AuthenticationError('No user context found');
     }
 
     const errors = await validateRequest(req.body, ChangePasswordRequest);
     if (errors.length > 0) {
-      const messages = errors
-        .flatMap((err) => Object.values(err.constraints || {}));
-      console.error('❌ Change password validation failed:', {
-        userId: req.user?.userId,
-        payload: Object.keys(req.body),
-        errors: messages,
-      });
-      return res.status(400).json({
-        error: {
-          status: 400,
-          message: 'Validation failed',
-          code: 'VALIDATION_ERROR',
-          details: messages,
-        },
-      });
+      const messages = errors.flatMap((err) => Object.values(err.constraints || {}));
+      console.warn('❌ Password change validation errors:', messages);
+      throw new ValidationError('Password change validation failed', { messages });
     }
 
     const { oldPassword, newPassword } = req.body;
+    
+    console.log('🔐 Verifying old password for:', req.user.userId);
     await authService.changePassword(req.user.userId, oldPassword, newPassword);
 
+    console.log('✅ Password changed for:', req.user.userId);
     return res.status(200).json({
+      success: true,
       message: 'Password changed successfully',
     });
   } catch (error: any) {
-    const statusCode = error.message.includes('incorrect') ? 400 : 500;
-    return res.status(statusCode).json({
-      error: {
-        status: statusCode,
-        message: error.message,
-        code: 'PASSWORD_CHANGE_ERROR',
-      },
+    console.error('❌ Password change error:', {
+      userId: req.user?.userId,
+      error: error.message,
     });
+
+    if (error.message.includes('incorrect')) {
+      throw new ValidationError('Current password is incorrect');
+    }
+
+    throw error;
   }
 });
 
@@ -285,10 +265,16 @@ router.post('/change-password', authenticate, async (req: AuthenticatedRequest, 
  * Logout user (mainly for frontend session management)
  */
 router.post('/logout', authenticate, (req: AuthenticatedRequest, res: Response) => {
-  // Since we use stateless JWT, logout just signals frontend to clear token
-  return res.status(200).json({
-    message: 'Logged out successfully. Please clear your token from client storage.',
-  });
+  try {
+    console.log('👤 User logged out:', req.user?.userId);
+    return res.status(200).json({
+      success: true,
+      message: 'Logged out successfully. Please clear your token from client storage.',
+    });
+  } catch (error: any) {
+    console.error('❌ Logout error:', error.message);
+    throw error;
+  }
 });
 
 export default router;

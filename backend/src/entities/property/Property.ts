@@ -9,11 +9,16 @@ import {
 } from 'typeorm';
 import { User } from '../User';
 import { PropertyImage } from './PropertyImage';
+import { PropertyFloor } from './PropertyFloor';
+import { PropertyRoomTypePricing } from './PropertyRoomTypePricing';
 import { Lease } from '../lease/Lease';
 
 @Entity('properties')
 export class Property {
   @PrimaryGeneratedColumn('uuid') id!: string;
+
+  @Column({ type: 'uuid' })
+  agentId!: string; // Agent who created/manages this property
 
   @Column({ type: 'uuid' })
   landlordId!: string;
@@ -49,20 +54,46 @@ export class Property {
   })
   propertyType!: string;
 
+  @Column({
+    type: 'enum',
+    enum: ['rental', 'airbnb'],
+    default: 'rental',
+  })
+  propertyModel!: string; // rental = traditional monthly, airbnb = daily/weekly booking
+
+  @Column({ type: 'numeric', nullable: true, default: null })
+  securityFee!: number; // Optional monthly fee for security personnel (watchmen/guards). Only for rental properties.
+
   @Column({ type: 'text', nullable: true })
   description!: string;
 
-  @Column({ type: 'numeric' })
-  monthlyRent!: number;
+  @Column({ type: 'numeric', nullable: true })
+  monthlyRent!: number | null;
 
   @Column({ type: 'numeric', nullable: true })
-  depositAmount!: number;
+  depositAmount!: number | null;
 
   @Column({ type: 'simple-array', nullable: true })
   utilitiesIncluded!: string[];
 
   @Column({ type: 'simple-array', nullable: true })
   imageUrls!: string[];
+
+  @Column({
+    type: 'enum',
+    enum: ['bank', 'paybill'],
+    nullable: true,
+  })
+  paymentMethod!: string; // 'bank' for bank transfers, 'paybill' for paybill
+
+  @Column({ type: 'varchar', nullable: true })
+  bankName!: string; // Bank name for bank transfer method
+
+  @Column({ type: 'varchar', nullable: true })
+  accountNumber!: string; // Account number for bank transfers or paybill reference
+
+  @Column({ type: 'varchar', nullable: true })
+  paybillNumber!: string; // Paybill number for paybill method
 
   @Column({ type: 'boolean', default: true })
   isAvailable!: boolean;
@@ -73,12 +104,25 @@ export class Property {
 
   // Relations
   @ManyToOne(() => User)
+  agent!: User;
+
+  @ManyToOne(() => User)
   landlord!: User;
 
   @OneToMany(() => PropertyImage, (image) => image.property, {
     cascade: true,
   })
   images!: PropertyImage[];
+
+  @OneToMany(() => PropertyFloor, (floor) => floor.property, {
+    cascade: true,
+  })
+  floors!: PropertyFloor[];
+
+  @OneToMany(() => PropertyRoomTypePricing, (pricing) => pricing.property, {
+    cascade: true,
+  })
+  roomTypePricing!: PropertyRoomTypePricing[];
 
   @OneToMany(() => Lease, (lease) => lease.property)
   leases!: Lease[];

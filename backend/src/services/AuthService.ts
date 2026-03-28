@@ -7,6 +7,7 @@ import { env } from '../config/env';
 export interface TokenPayload {
   userId: string;
   email: string;
+  role: string;
   iat: number;
   exp: number;
 }
@@ -44,8 +45,8 @@ export class AuthService {
   /**
    * Generate JWT token
    */
-  generateToken(userId: string, email: string): string {
-    const payload = { userId, email };
+  generateToken(userId: string, email: string, role: string): string {
+    const payload = { userId, email, role };
     return jwt.sign(payload, env.JWT_SECRET, {
       expiresIn: env.JWT_EXPIRY,
       algorithm: 'HS256',
@@ -107,7 +108,7 @@ export class AuthService {
     await this.userRepository.save(user);
 
     // Generate token
-    const token = this.generateToken(user.id, user.email);
+    const token = this.generateToken(user.id, user.email, user.role);
 
     return {
       user: {
@@ -147,7 +148,7 @@ export class AuthService {
     }
 
     // Generate token
-    const token = this.generateToken(user.id, user.email);
+    const token = this.generateToken(user.id, user.email, user.role);
 
     return {
       user: {
