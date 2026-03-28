@@ -258,19 +258,50 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
       const savedPayment = Array.isArray(savedPaymentResult) ? savedPaymentResult[0] : savedPaymentResult;
       console.log('✅ Payment created:', savedPayment?.id);
 
-      // Update monthly breakdown
+      // Update monthly breakdown with the payment amount
       console.log('📝 Updating breakdown status...');
-      breakdown.amountPaid += parseFloat(String(amount));
-      breakdown.overpayment = breakdown.amountPaid - breakdown.totalDue;
-
-      if (breakdown.amountPaid >= breakdown.totalDue) {
-        breakdown.status = breakdown.overpayment > 0 ? 'overpaid' : 'paid';
-      } else if (breakdown.amountPaid > 0) {
-        breakdown.status = 'partial';
+      const amountPaidNumeric = parseFloat(String(amount));
+      const prevAmountPaid = parseFloat(String(breakdown.amountPaid || 0));
+      const totalDueNumeric = parseFloat(String(breakdown.totalDue));
+      const newAmountPaid = prevAmountPaid + amountPaidNumeric;
+      const newOverpayment = newAmountPaid - totalDueNumeric;
+      
+      console.log('💰 Payment calculation:', {
+        prevAmountPaid,
+        newPayment: amountPaidNumeric,
+        newAmountPaid,
+        totalDue: totalDueNumeric,
+        newOverpayment,
+        condition1: `newAmountPaid (${newAmountPaid}) >= totalDue (${totalDueNumeric})? ${newAmountPaid >= totalDueNumeric}`,
+        condition2: `newAmountPaid (${newAmountPaid}) > 0? ${newAmountPaid > 0}`,
+      });
+      
+      let newStatus = breakdown.status;
+      if (newAmountPaid >= totalDueNumeric) {
+        newStatus = newOverpayment > 0 ? 'overpaid' : 'paid';
+        console.log('✅ Amount >= Due. Status:', newStatus);
+      } else if (newAmountPaid > 0) {
+        newStatus = 'partial';
+        console.log('✅ Partial payment. Status:', newStatus);
       }
+      
+      console.log('🏷️ Status determined:', { fromBreakdown: breakdown.status, calculated: newStatus });
 
-      await monthlyBreakdownRepo.save(breakdown);
-      console.log('✅ Breakdown updated');
+      // Use update to ensure it persists
+      await monthlyBreakdownRepo.update(
+        { id: breakdown.id },
+        {
+          amountPaid: newAmountPaid,
+          overpayment: newOverpayment,
+          status: newStatus,
+        }
+      );
+      console.log('✅ Breakdown updated:', { newAmountPaid, newOverpayment, newStatus });
+
+      // Fetch updated breakdown to return accurate data
+      const updatedBreakdown = await monthlyBreakdownRepo.findOne({
+        where: { id: breakdown.id },
+      });
 
       return res.status(201).json({
         success: true,
@@ -278,12 +309,27 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
         data: {
           payment: savedPayment,
           breakdown: {
-            id: breakdown.id,
-            totalDue: breakdown.totalDue,
-            amountPaid: breakdown.amountPaid,
-            balanceRemaining: Math.max(0, breakdown.totalDue - breakdown.amountPaid),
-            overpayment: Math.max(0, breakdown.overpayment),
-            status: breakdown.status,
+            id: updatedBreakdown?.id,
+            leaseId: updatedBreakdown?.leaseId,
+            month: updatedBreakdown?.month,
+            year: updatedBreakdown?.year,
+            baseRent: updatedBreakdown?.baseRent,
+            waterCharges: updatedBreakdown?.waterCharges,
+            garbageCharges: updatedBreakdown?.garbageCharges,
+            securityFee: updatedBreakdown?.securityFee,
+            penaltyCharges: updatedBreakdown?.penaltyCharges || 0,
+            electricityReconnectionFee: updatedBreakdown?.electricityReconnectionFee || 0,
+            waterReconnectionFee: updatedBreakdown?.waterReconnectionFee || 0,
+            otherCharges: updatedBreakdown?.otherCharges || 0,
+            additionalChargesDescription: updatedBreakdown?.additionalChargesDescription || '',
+            totalDue: updatedBreakdown?.totalDue,
+            amountPaid: updatedBreakdown?.amountPaid,
+            balanceRemaining: Math.max(0, parseFloat(String(updatedBreakdown?.totalDue || 0)) - parseFloat(String(updatedBreakdown?.amountPaid || 0))),
+            overpayment: Math.max(0, parseFloat(String(updatedBreakdown?.overpayment || 0))),
+            status: updatedBreakdown?.status,
+            dueDate: updatedBreakdown?.dueDate,
+            createdAt: updatedBreakdown?.createdAt,
+            updatedAt: updatedBreakdown?.updatedAt,
           },
         },
       });
@@ -343,22 +389,57 @@ router.get('/:leaseId/monthly-breakdown', authenticate, async (req: Authenticate
       });
 
       if (!breakdown) {
-        throw new NotFoundError('Monthly breakdown', { leaseId, month, year });
+        console.log('❌ Breakdown not found for this month/year');
+        return res.status(404).json({
+          success: false,
+          message: 'Monthly breakdown not found for this month',
+          data: null,
+        });
       }
 
       console.log('✅ Breakdown retrieved');
       return res.status(200).json({
         success: true,
         message: 'Monthly breakdown retrieved successfully',
-        data: breakdown,
+        data: {
+          id: breakdown.id,
+          leaseId: breakdown.leaseId,
+          month: breakdown.month,
+          year: breakdown.year,
+          baseRent: breakdown.baseRent,
+          waterCharges: breakdown.waterCharges,
+          garbageCharges: breakdown.garbageCharges,
+          securityFee: breakdown.securityFee,
+          penaltyCharges: breakdown.penaltyCharges || 0,
+          electricityReconnectionFee: breakdown.electricityReconnectionFee || 0,
+          waterReconnectionFee: breakdown.waterReconnectionFee || 0,
+          otherCharges: breakdown.otherCharges || 0,
+          additionalChargesDescription: breakdown.additionalChargesDescription || '',
+          totalDue: breakdown.totalDue,
+          amountPaid: breakdown.amountPaid,
+          balanceRemaining: Math.max(0, breakdown.totalDue - breakdown.amountPaid),
+          overpayment: Math.max(0, breakdown.overpayment),
+          status: breakdown.status,
+          dueDate: breakdown.dueDate,
+          createdAt: breakdown.createdAt,
+          updatedAt: breakdown.updatedAt,
+        },
       });
     } catch (err: any) {
       console.error('❌ Error fetching breakdown:', err.message);
-      throw new DatabaseError(err.message, 'fetch_breakdown');
+      return res.status(500).json({
+        success: false,
+        message: 'Error fetching breakdown',
+        error: err.message,
+      });
     }
   } catch (error: any) {
     console.error('❌ Fetch breakdown error:', error.message);
-    throw error;
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching breakdown',
+      error: error.message,
+    });
   }
 });
 
@@ -521,5 +602,104 @@ async function calculateMonthlyRent(leaseId: string, month?: number, year?: numb
     throw new DatabaseError(error.message, 'calculate_monthly_rent');
   }
 }
+
+/**
+ * PATCH /api/v1/leases/:breakdownId/update-charges
+ * Update additional charges on a monthly rent breakdown
+ */
+router.patch('/:breakdownId/update-charges', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('🔄 Updating invoice charges for breakdown:', req.params.breakdownId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    const { breakdownId } = req.params;
+    const {
+      penaltyCharges = 0,
+      electricityReconnectionFee = 0,
+      waterReconnectionFee = 0,
+      otherCharges = 0,
+      additionalChargesDescription = '',
+      totalDue,
+    } = req.body;
+
+    const breakdownRepo = AppDataSource.getRepository(MonthlyRentBreakdown);
+    
+    const breakdown = await breakdownRepo.findOne({
+      where: { id: breakdownId }
+    });
+
+    if (!breakdown) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invoice not found',
+      });
+    }
+
+    // Update charges
+    const penaltyNum = parseFloat(String(penaltyCharges || 0));
+    const elecReconnNum = parseFloat(String(electricityReconnectionFee || 0));
+    const waterReconnNum = parseFloat(String(waterReconnectionFee || 0));
+    const otherNum = parseFloat(String(otherCharges || 0));
+    const totalNum = parseFloat(String(totalDue || 0));
+
+    // Recalculate status based on the new totalDue and existing amountPaid
+    const currentAmountPaid = parseFloat(String(breakdown.amountPaid || 0));
+    console.log('🔄 Recalculating status after charge update:', {
+      oldTotalDue: breakdown.totalDue,
+      newTotalDue: totalNum,
+      currentAmountPaid,
+      oldStatus: breakdown.status,
+    });
+
+    let newStatus = breakdown.status;
+    if (currentAmountPaid >= totalNum) {
+      const newOverpayment = currentAmountPaid - totalNum;
+      newStatus = newOverpayment > 0 ? 'overpaid' : 'paid';
+      console.log('✅ Amount >= New Total Due. New Status:', newStatus);
+    } else if (currentAmountPaid > 0) {
+      newStatus = 'partial';
+      console.log('✅ Partial payment with new total. New Status:', newStatus);
+    } else {
+      newStatus = 'pending';
+      console.log('✅ No payment yet. New Status:', newStatus);
+    }
+
+    await breakdownRepo.update(
+      { id: breakdownId },
+      {
+        penaltyCharges: penaltyNum,
+        electricityReconnectionFee: elecReconnNum,
+        waterReconnectionFee: waterReconnNum,
+        otherCharges: otherNum,
+        additionalChargesDescription,
+        totalDue: totalNum,
+        status: newStatus,
+      }
+    );
+
+    console.log('📝 Charges and status updated. New Status:', newStatus);
+
+    // Refetch updated breakdown
+    const updatedBreakdown = await breakdownRepo.findOne({
+      where: { id: breakdownId }
+    });
+
+    console.log('✅ Invoice charges updated successfully');
+    return res.status(200).json({
+      success: true,
+      message: 'Invoice charges updated successfully',
+      data: updatedBreakdown,
+    });
+  } catch (error: any) {
+    console.error('❌ Error updating invoice charges:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update invoice charges',
+    });
+  }
+});
 
 export default router;
