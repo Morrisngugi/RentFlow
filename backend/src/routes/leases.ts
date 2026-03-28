@@ -258,19 +258,34 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
       const savedPayment = Array.isArray(savedPaymentResult) ? savedPaymentResult[0] : savedPaymentResult;
       console.log('✅ Payment created:', savedPayment?.id);
 
-      // Update monthly breakdown
+      // Update monthly breakdown with the payment amount
       console.log('📝 Updating breakdown status...');
-      breakdown.amountPaid += parseFloat(String(amount));
-      breakdown.overpayment = breakdown.amountPaid - breakdown.totalDue;
-
-      if (breakdown.amountPaid >= breakdown.totalDue) {
-        breakdown.status = breakdown.overpayment > 0 ? 'overpaid' : 'paid';
-      } else if (breakdown.amountPaid > 0) {
-        breakdown.status = 'partial';
+      const amountPaidNumeric = parseFloat(String(amount));
+      const newAmountPaid = parseFloat(String(breakdown.amountPaid || 0)) + amountPaidNumeric;
+      const newOverpayment = newAmountPaid - parseFloat(String(breakdown.totalDue));
+      
+      let newStatus = breakdown.status;
+      if (newAmountPaid >= parseFloat(String(breakdown.totalDue))) {
+        newStatus = newOverpayment > 0 ? 'overpaid' : 'paid';
+      } else if (newAmountPaid > 0) {
+        newStatus = 'partial';
       }
 
-      await monthlyBreakdownRepo.save(breakdown);
-      console.log('✅ Breakdown updated');
+      // Use update to ensure it persists
+      await monthlyBreakdownRepo.update(
+        { id: breakdown.id },
+        {
+          amountPaid: newAmountPaid,
+          overpayment: newOverpayment,
+          status: newStatus,
+        }
+      );
+      console.log('✅ Breakdown updated:', { newAmountPaid, newOverpayment, newStatus });
+
+      // Fetch updated breakdown to return accurate data
+      const updatedBreakdown = await monthlyBreakdownRepo.findOne({
+        where: { id: breakdown.id },
+      });
 
       return res.status(201).json({
         success: true,
@@ -278,12 +293,12 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
         data: {
           payment: savedPayment,
           breakdown: {
-            id: breakdown.id,
-            totalDue: breakdown.totalDue,
-            amountPaid: breakdown.amountPaid,
-            balanceRemaining: Math.max(0, breakdown.totalDue - breakdown.amountPaid),
-            overpayment: Math.max(0, breakdown.overpayment),
-            status: breakdown.status,
+            id: updatedBreakdown?.id,
+            totalDue: updatedBreakdown?.totalDue,
+            amountPaid: updatedBreakdown?.amountPaid,
+            balanceRemaining: Math.max(0, parseFloat(String(updatedBreakdown?.totalDue || 0)) - parseFloat(String(updatedBreakdown?.amountPaid || 0))),
+            overpayment: Math.max(0, parseFloat(String(updatedBreakdown?.overpayment || 0))),
+            status: updatedBreakdown?.status,
           },
         },
       });
@@ -343,22 +358,52 @@ router.get('/:leaseId/monthly-breakdown', authenticate, async (req: Authenticate
       });
 
       if (!breakdown) {
-        throw new NotFoundError('Monthly breakdown', { leaseId, month, year });
+        console.log('❌ Breakdown not found for this month/year');
+        return res.status(404).json({
+          success: false,
+          message: 'Monthly breakdown not found for this month',
+          data: null,
+        });
       }
 
       console.log('✅ Breakdown retrieved');
       return res.status(200).json({
         success: true,
         message: 'Monthly breakdown retrieved successfully',
-        data: breakdown,
+        data: {
+          id: breakdown.id,
+          leaseId: breakdown.leaseId,
+          month: breakdown.month,
+          year: breakdown.year,
+          baseRent: breakdown.baseRent,
+          waterCharges: breakdown.waterCharges,
+          garbageCharges: breakdown.garbageCharges,
+          securityFee: breakdown.securityFee,
+          totalDue: breakdown.totalDue,
+          amountPaid: breakdown.amountPaid,
+          balanceRemaining: Math.max(0, breakdown.totalDue - breakdown.amountPaid),
+          overpayment: Math.max(0, breakdown.overpayment),
+          status: breakdown.status,
+          dueDate: breakdown.dueDate,
+          createdAt: breakdown.createdAt,
+          updatedAt: breakdown.updatedAt,
+        },
       });
     } catch (err: any) {
       console.error('❌ Error fetching breakdown:', err.message);
-      throw new DatabaseError(err.message, 'fetch_breakdown');
+      return res.status(500).json({
+        success: false,
+        message: 'Error fetching breakdown',
+        error: err.message,
+      });
     }
   } catch (error: any) {
     console.error('❌ Fetch breakdown error:', error.message);
-    throw error;
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching breakdown',
+      error: error.message,
+    });
   }
 });
 

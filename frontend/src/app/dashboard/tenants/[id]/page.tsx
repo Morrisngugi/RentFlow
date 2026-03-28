@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Plus, X } from 'lucide-react';
+import { ArrowLeft, Plus, X, CreditCard } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
@@ -63,7 +63,9 @@ export default function TenantDetailPage() {
   const [lease, setLease] = useState<Lease | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [breakdown, setBreakdown] = useState<any>(null);
   const [paymentForm, setPaymentForm] = useState<PaymentForm>({
     amount: 0,
     paymentDate: new Date().toISOString().split('T')[0],
@@ -119,9 +121,44 @@ export default function TenantDetailPage() {
       if (response.ok) {
         const result = await response.json();
         setLease(result.data);
+        
+        // Fetch current month's breakdown
+        if (result.data?.id) {
+          fetchCurrentBreakdown(result.data.id);
+        }
       }
     } catch (error) {
       console.error('Error fetching lease details:', error);
+    }
+  };
+
+  const fetchCurrentBreakdown = async (leaseId: string) => {
+    try {
+      const now = new Date();
+      const month = now.getMonth() + 1;
+      const year = now.getFullYear();
+      
+      const response = await fetch(
+        `${API_URL}/leases/${leaseId}/monthly-breakdown?month=${month}&year=${year}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        setBreakdown(result.data);
+      } else if (response.status === 404) {
+        // Breakdown doesn't exist yet - will be created on first payment
+        console.log('Breakdown not yet created for this month');
+        setBreakdown(null);
+      }
+    } catch (error) {
+      console.error('Error fetching breakdown:', error);
+      // Don't fail silently - breakdown will be created on first payment
+      setBreakdown(null);
     }
   };
 
@@ -158,14 +195,72 @@ export default function TenantDetailPage() {
     return today >= dueDate;
   };
 
+  const handleGenerateInvoice = async () => {
+    if (paymentForm.currentWaterReading < paymentForm.previousWaterReading) {
+      toast.error('Current reading cannot be less than previous reading');
+      return;
+    }
+
+    if (!lease) {
+      toast.error('No lease information found');
+      return;
+    }
+
+    setGeneratingInvoice(true);
+    try {
+      // Calculate water bill
+      const waterBill = calculateWaterBill();
+      const totalDue = calculateTotalRent() + waterBill;
+
+      // Create a dummy payment to generate the breakdown (amountDue field)
+      // This will create the breakdown if it doesn't exist
+      const response = await fetch(`${API_URL}/leases/${lease.id}/payments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          amount: 0, // No payment yet, just generating invoice
+          paymentMethod: 'cash',
+          paymentDate: paymentForm.paymentDate,
+          month: paymentForm.month,
+          year: paymentForm.year,
+          waterMeterReading: {
+            previousReading: paymentForm.previousWaterReading,
+            currentReading: paymentForm.currentWaterReading,
+            unitsConsumed: calculateWaterUnitsConsumed(),
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate invoice');
+      }
+
+      const result = await response.json();
+      
+      // Update breakdown with invoice data
+      if (result.data?.breakdown) {
+        setBreakdown(result.data.breakdown);
+        toast.success('Invoice generated successfully');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to generate invoice';
+      toast.error(message);
+    } finally {
+      setGeneratingInvoice(false);
+    }
+  };
+
   const handleRecordPayment = async () => {
     if (!paymentForm.amount || paymentForm.amount <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
 
-    if (paymentForm.currentWaterReading < paymentForm.previousWaterReading) {
-      toast.error('Current reading cannot be less than previous reading');
+    if (!breakdown) {
+      toast.error('Please generate an invoice first');
       return;
     }
 
@@ -200,6 +295,13 @@ export default function TenantDetailPage() {
         throw new Error('Failed to record payment');
       }
 
+      const result = await response.json();
+      
+      // Update breakdown immediately with response data
+      if (result.data?.breakdown) {
+        setBreakdown(result.data.breakdown);
+      }
+
       toast.success('Payment recorded successfully');
       setShowPaymentModal(false);
       setPaymentForm({
@@ -207,16 +309,25 @@ export default function TenantDetailPage() {
         paymentDate: new Date().toISOString().split('T')[0],
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
-        previousWaterReading: 0,
-        currentWaterReading: 0,
+        previousWaterReading: paymentForm.previousWaterReading,
+        currentWaterReading: paymentForm.currentWaterReading,
       });
-      fetchLeaseDetails(tenantId);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to record payment';
       toast.error(message);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleOpenPaymentModal = () => {
+    if (breakdown) {
+      setPaymentForm({
+        ...paymentForm,
+        amount: parseFloat(String(breakdown.totalDue)) || 0,
+      });
+    }
+    setShowPaymentModal(true);
   };
 
   if (loading) {
@@ -441,40 +552,131 @@ export default function TenantDetailPage() {
                 </p>
               </div>
 
-              {/* Record Payment Button */}
+              {/* Generate or Update Invoice Button */}
               <button
-                onClick={() => setShowPaymentModal(true)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
+                onClick={handleGenerateInvoice}
+                disabled={generatingInvoice}
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
               >
                 <Plus size={20} />
-                Record Payment
+                {generatingInvoice ? 'Generating Invoice...' : breakdown ? 'Update Invoice' : 'Generate Invoice'}
               </button>
             </div>
 
-            {/* Payment Status Card */}
+            {/* Invoice & Payment Card */}
             <div className="bg-white rounded-lg shadow-md p-8">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Payment Status</h2>
-              <div className={`p-6 rounded-lg mb-6 ${rentStatusColor}`}>
-                <p className="text-sm font-semibold mb-2">STATUS</p>
-                <p className="text-3xl font-bold">{rentStatus}</p>
-              </div>
-              <div className="space-y-4">
-                <div>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Invoice & Payment</h2>
+              
+              {/* Breakdown Display */}
+              {breakdown ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Invoice</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Base Rent</span>
+                      <span className="font-semibold">KES {parseFloat(String(breakdown.baseRent ?? 0)).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Water Charges</span>
+                      <span className="font-semibold">KES {parseFloat(String(breakdown.waterCharges ?? 0)).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Garbage Charges</span>
+                      <span className="font-semibold">KES {parseFloat(String(breakdown.garbageCharges ?? 0)).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Security Fee</span>
+                      <span className="font-semibold">KES {parseFloat(String(breakdown.securityFee ?? 0)).toLocaleString()}</span>
+                    </div>
+                    <div className="border-t pt-3 flex justify-between bg-yellow-50 p-3 rounded">
+                      <span className="text-gray-900 font-bold">Total Due</span>
+                      <span className="text-2xl font-bold text-blue-600">KES {parseFloat(String(breakdown.totalDue ?? 0)).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 mb-6 text-center">
+                  <p className="text-gray-600 mb-2">No invoice generated yet</p>
+                  <p className="text-sm text-gray-500">Generate an invoice to get started</p>
+                </div>
+              )}
+
+              {/* Payment Status */}
+              {breakdown && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Payment Status</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Amount Paid</span>
+                      <span className="font-semibold text-green-600">KES {parseFloat(String(breakdown.amountPaid ?? 0)).toLocaleString()}</span>
+                    </div>
+                    <div className="border-t pt-2 flex justify-between">
+                      {(() => {
+                        const totalDue = parseFloat(String(breakdown.totalDue ?? 0));
+                        const amountPaid = parseFloat(String(breakdown.amountPaid ?? 0));
+                        const balanceRemaining = Math.max(0, totalDue - amountPaid);
+                        const overpayment = Math.max(0, amountPaid - totalDue);
+                        
+                        if (overpayment > 0) {
+                          return (
+                            <>
+                              <span className="text-gray-600">Overpayment</span>
+                              <span className="font-semibold text-green-600">KES {overpayment.toLocaleString()}</span>
+                            </>
+                          );
+                        } else if (balanceRemaining > 0) {
+                          return (
+                            <>
+                              <span className="text-gray-600">Balance Remaining</span>
+                              <span className="font-semibold text-red-600">KES {balanceRemaining.toLocaleString()}</span>
+                            </>
+                          );
+                        }
+                        return (
+                          <>
+                            <span className="text-gray-600">Status</span>
+                            <span className="font-semibold text-green-600">Paid ✓</span>
+                          </>
+                        );
+                      })()}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      Status: <span className="font-semibold capitalize">{breakdown.status}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Make Payment Button */}
+              {breakdown && breakdown.status !== 'paid' && breakdown.status !== 'overpaid' && (
+                <button
+                  onClick={handleOpenPaymentModal}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 mb-4"
+                >
+                  <CreditCard size={20} />
+                  Make Payment
+                </button>
+              )}
+              
+              {breakdown && (breakdown.status === 'paid' || breakdown.status === 'overpaid') && (
+                <button
+                  disabled
+                  className="w-full bg-gray-400 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 cursor-not-allowed mb-4"
+                >
+                  <CreditCard size={20} />
+                  Payment Complete ✓
+                </button>
+              )}
+
+              {/* Lease Info */}
+              {breakdown && (
+                <div className="border-t pt-4">
                   <p className="text-gray-600 text-sm">Lease Start Date</p>
                   <p className="text-lg font-semibold text-gray-900">
                     {new Date(lease.startDate).toLocaleDateString()}
                   </p>
                 </div>
-                <div className="border-t pt-4">
-                  <p className="text-gray-600 text-sm mb-3">Quick Actions</p>
-                  <button
-                    onClick={() => setShowPaymentModal(true)}
-                    className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-50 py-2 rounded-lg font-semibold"
-                  >
-                    Make Payment
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}
