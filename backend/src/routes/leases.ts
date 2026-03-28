@@ -17,6 +17,67 @@ import {
 const router = Router();
 
 /**
+ * GET /api/v1/leases/by-tenant/:tenantId
+ * Get active lease for a tenant
+ */
+router.get('/by-tenant/:tenantId', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('📋 Fetching lease for tenant:', req.params.tenantId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    const { tenantId } = req.params;
+
+    try {
+      const leaseRepo = AppDataSource.getRepository(Lease);
+      
+      // Get active lease for tenant
+      const lease = await leaseRepo.findOne({
+        where: { 
+          tenantId,
+          status: 'active'
+        },
+        order: { createdAt: 'DESC' }
+      });
+
+      if (!lease) {
+        return res.status(200).json({
+          success: true,
+          message: 'No active lease found',
+          data: null,
+        });
+      }
+
+      console.log('✅ Lease fetched:', lease.id);
+      return res.status(200).json({
+        success: true,
+        message: 'Lease retrieved successfully',
+        data: {
+          id: lease.id,
+          monthlyRent: lease.monthlyRent,
+          securityFee: lease.securityFee,
+          garbageAmount: lease.garbageAmount,
+          waterUnitCost: lease.waterUnitCost,
+          rentDueDate: lease.rentDueDate,
+          startDate: lease.startDate,
+          endDate: lease.endDate,
+          status: lease.status,
+          propertyId: lease.propertyId,
+        },
+      });
+    } catch (err: any) {
+      console.error('❌ Error fetching lease:', err.message);
+      throw new DatabaseError(err.message, 'fetch_lease_by_tenant');
+    }
+  } catch (error: any) {
+    console.error('❌ Fetch lease error:', error.message);
+    throw error;
+  }
+});
+
+/**
  * POST /api/v1/leases/:leaseId/water-meter-reading
  * Record a water meter reading for a lease
  */
@@ -102,7 +163,7 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
     }
 
     const { leaseId } = req.params;
-    const { amount, paymentMethod, paymentDate, month, year } = req.body;
+    const { amount, paymentMethod, paymentDate, month, year, waterMeterReading } = req.body;
 
     // Validate required fields
     if (!amount || !paymentMethod || !paymentDate || !month || !year) {
@@ -136,10 +197,47 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
       });
 
       if (!breakdown) {
-        throw new ValidationError('Monthly rent breakdown not found', {
-          message: 'Please calculate rent first by recording a water meter reading',
+        console.log('📝 Creating monthly breakdown on demand...');
+        // Calculate based on lease terms
+        const baseRent = parseFloat(String(lease.monthlyRent)) || 0;
+        const securityFee = parseFloat(String(lease.securityFee)) || 0;
+        const garbageCharges = parseFloat(String(lease.garbageAmount)) || 0;
+        const waterUnitCost = parseFloat(String(lease.waterUnitCost)) || 0;
+
+        // Calculate water charges if meter reading provided
+        let waterCharges = 0;
+        if (waterMeterReading && waterMeterReading.unitsConsumed) {
+          waterCharges = waterUnitCost * parseFloat(String(waterMeterReading.unitsConsumed));
+        }
+
+        const totalDue = baseRent + securityFee + garbageCharges + waterCharges;
+
+        // Create new breakdown
+        const newBreakdown = monthlyBreakdownRepo.create({
+          leaseId,
+          month: parseInt(String(month)),
+          year: parseInt(String(year)),
+          baseRent,
+          securityFee,
+          garbageCharges,
+          waterCharges,
+          totalDue,
+          amountPaid: 0,
+          overpayment: 0,
+          dueDate: new Date(lease.rentDueDate),
+          status: 'pending',
+        } as any);
+
+        const savedBreakdownResult = await monthlyBreakdownRepo.save(newBreakdown);
+        breakdown = Array.isArray(savedBreakdownResult) ? savedBreakdownResult[0] : savedBreakdownResult;
+        console.log('✅ Monthly breakdown created:', breakdown?.id);
+      }
+
+      if (!breakdown) {
+        throw new ValidationError('Failed to create or retrieve monthly breakdown', {
           month,
           year,
+          leaseId,
         });
       }
 
@@ -179,7 +277,14 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
         message: 'Payment recorded successfully',
         data: {
           payment: savedPayment,
-          breakdown,
+          breakdown: {
+            id: breakdown.id,
+            totalDue: breakdown.totalDue,
+            amountPaid: breakdown.amountPaid,
+            balanceRemaining: Math.max(0, breakdown.totalDue - breakdown.amountPaid),
+            overpayment: Math.max(0, breakdown.overpayment),
+            status: breakdown.status,
+          },
         },
       });
     } catch (err: any) {
