@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 
 interface ComplaintData {
@@ -26,6 +26,8 @@ interface PaginationData {
 
 export default function AgentComplaintsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const complaintIdFromUrl = searchParams?.get('complaintId') || null;
   const [complaints, setComplaints] = useState<ComplaintData[]>([]);
   const [pagination, setPagination] = useState<PaginationData>({
     total: 0,
@@ -44,6 +46,16 @@ export default function AgentComplaintsPage() {
   useEffect(() => {
     fetchComplaints();
   }, [statusFilter, pagination.offset]);
+
+  // Auto-open complaint from URL query parameter
+  useEffect(() => {
+    if (complaintIdFromUrl && complaints.length > 0) {
+      const complaint = complaints.find((c) => c.id === complaintIdFromUrl);
+      if (complaint) {
+        handleComplaintClick(complaint);
+      }
+    }
+  }, [complaintIdFromUrl, complaints]);
 
   const fetchComplaints = async () => {
     setLoading(true);

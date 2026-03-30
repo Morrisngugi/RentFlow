@@ -169,7 +169,14 @@ export default function AgentDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         {/* Recent Complaints */}
         <div className="lg:col-span-2 bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Complaints to Address</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-900">Complaints to Address</h2>
+            <Link href="/dashboard/agent-complaints">
+              <button className="text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded transition-colors">
+                View All →
+              </button>
+            </Link>
+          </div>
           
           {recentComplaints.length === 0 ? (
             <div className="text-center py-8">
@@ -178,23 +185,27 @@ export default function AgentDashboard() {
           ) : (
             <div className="space-y-4">
               {recentComplaints.map((complaint) => (
-                <div key={complaint.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1">
-                      <span className="text-2xl">{getComplaintIcon(complaint.complaintType)}</span>
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-900">{complaint.title}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{complaint.description}</p>
-                        <div className="flex items-center gap-3 mt-2">
-                          <span className="text-xs text-gray-500">{formatDate(complaint.createdAt)}</span>
-                          <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(complaint.status)}`}>
-                            {complaint.status === 'in_progress' ? 'In Progress' : complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1)}
-                          </span>
+                <Link key={complaint.id} href={`/dashboard/agent-complaints?complaintId=${complaint.id}`}>
+                  <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all cursor-pointer hover:border-blue-300">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        <span className="text-2xl">{getComplaintIcon(complaint.type)}</span>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-gray-900">{complaint.title}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{complaint.description}</p>
+                          <div className="flex items-center gap-3 mt-2 flex-wrap">
+                            <span className="text-xs text-gray-500">{complaint.property?.name || 'N/A'}</span>
+                            <span className="text-xs text-gray-500 font-medium">👤 {complaint.tenant?.name || 'N/A'}</span>
+                            <span className="text-xs text-gray-500">{formatDate(complaint.createdAt)}</span>
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(complaint.status)}`}>
+                              {complaint.status === 'in_progress' ? 'In Progress' : complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
