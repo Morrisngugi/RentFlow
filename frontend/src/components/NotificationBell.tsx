@@ -306,12 +306,22 @@ export default function NotificationBell({ userRole }: NotificationBellProps) {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleOpenComplaintModal(notification);
+                                handleMarkAsRead(notification.id);
+                                router.push(`/dashboard/agent-complaints?complaintId=${notification.relatedEntityId}`);
+                                setShowDropdown(false);
                               }}
                               className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded font-medium transition-colors"
                             >
-                              View & Reply
+                              View Complaint
                             </button>
+                            {!notification.isRead && (
+                              <button
+                                onClick={(e) => handleMarkAsRead(notification.id, e)}
+                                className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded font-medium transition-colors"
+                              >
+                                Mark Read
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
