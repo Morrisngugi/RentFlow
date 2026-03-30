@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { User, LoginRequest, LoginResponse } from './types';
+import { User, LoginRequest, LoginResponse, Notification } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
@@ -110,14 +110,47 @@ export class ApiClient {
     return response.data.data;
   }
 
-  async getNotifications(): Promise<any[]> {
-    // Notifications endpoint not yet implemented in backend
-    return [];
+  async getNotifications(limit?: number, offset?: number): Promise<Notification[]> {
+    try {
+      const response = await this.axiosInstance.get<any>('/notifications', {
+        params: {
+          limit: limit || 20,
+          offset: offset || 0,
+        },
+      });
+      return response.data.data.notifications || [];
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+      return [];
+    }
   }
 
-  async markNotificationAsRead(notificationId: number): Promise<void> {
-    // Notifications endpoint not yet implemented in backend
-    return;
+  async markNotificationAsRead(notificationId: string): Promise<void> {
+    try {
+      await this.axiosInstance.patch(`/notifications/${notificationId}/read`);
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+      throw error;
+    }
+  }
+
+  async markAllNotificationsAsRead(): Promise<void> {
+    try {
+      await this.axiosInstance.patch('/notifications/mark-all-read');
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+      throw error;
+    }
+  }
+
+  async getUnreadNotificationCount(): Promise<number> {
+    try {
+      const response = await this.axiosInstance.get<any>('/notifications/unread-count');
+      return response.data.data.unreadCount || 0;
+    } catch (error) {
+      console.error('Failed to fetch unread count:', error);
+      return 0;
+    }
   }
 }
 

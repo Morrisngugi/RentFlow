@@ -13,6 +13,8 @@ import {
   NotFoundError,
   DatabaseError,
 } from '../errors/AppError';
+import { notificationService } from '../services/NotificationService';
+import { agentTransactionService } from '../services/AgentTransactionService';
 
 const router = Router();
 
@@ -224,7 +226,7 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
           totalDue,
           amountPaid: 0,
           overpayment: 0,
-          dueDate: new Date(lease.rentDueDate),
+          dueDate: new Date(parseInt(String(year)), parseInt(String(month)) - 1, 5),
           status: 'pending',
         } as any);
 
@@ -302,6 +304,81 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
       const updatedBreakdown = await monthlyBreakdownRepo.findOne({
         where: { id: breakdown.id },
       });
+
+      // Send notification to tenant
+      if (amount > 0) {
+        // Payment received notification
+        try {
+          const balance = Math.max(0, totalDueNumeric - newAmountPaid);
+          await notificationService.sendPaymentNotification(lease.tenantId, {
+            amountPaid: amountPaidNumeric,
+            balance,
+            paymentDate: new Date(paymentDate),
+            status: newStatus as 'paid' | 'partial' | 'overpaid',
+          });
+          console.log('✅ Payment notification sent to tenant');
+        } catch (notifError: any) {
+          console.warn('⚠️ Failed to send payment notification:', notifError.message);
+        }
+
+        // Log agent transaction if agent is making the payment
+        if (req.user.role === 'agent') {
+          try {
+            await agentTransactionService.logTransaction({
+              agentId: req.user.userId,
+              actionType: 'payment_processed',
+              relatedEntityId: breakdown.id,
+              relatedEntityType: 'invoice',
+              description: `Processed payment of KES ${amountPaidNumeric.toLocaleString()} for lease ${leaseId}`,
+              metadata: {
+                amount: amountPaidNumeric,
+                paymentMethod,
+                tenantId: lease.tenantId,
+                leaseId,
+              },
+            });
+            console.log('✅ Payment transaction logged');
+          } catch (transError: any) {
+            console.warn('⚠️ Failed to log payment transaction:', transError.message);
+          }
+        }
+      } else {
+        // Invoice generated notification (when amount is 0)
+        try {
+          await notificationService.sendInvoiceNotification(lease.tenantId, {
+            leaseId,
+            totalDue: totalDueNumeric,
+            dueDate: breakdown.dueDate,
+            breakdownId: breakdown.id,
+          });
+          console.log('✅ Invoice notification sent to tenant');
+        } catch (notifError: any) {
+          console.warn('⚠️ Failed to send invoice notification:', notifError.message);
+        }
+
+        // Log agent transaction if agent generated the invoice
+        if (req.user.role === 'agent') {
+          try {
+            await agentTransactionService.logTransaction({
+              agentId: req.user.userId,
+              actionType: 'invoice_generated',
+              relatedEntityId: breakdown.id,
+              relatedEntityType: 'invoice',
+              description: `Generated invoice of KES ${totalDueNumeric.toLocaleString()} for lease ${leaseId}`,
+              metadata: {
+                month,
+                year,
+                totalDue: totalDueNumeric,
+                tenantId: lease.tenantId,
+                leaseId,
+              },
+            });
+            console.log('✅ Invoice generation transaction logged');
+          } catch (transError: any) {
+            console.warn('⚠️ Failed to log invoice transaction:', transError.message);
+          }
+        }
+      }
 
       return res.status(201).json({
         success: true,
@@ -590,7 +667,7 @@ async function calculateMonthlyRent(leaseId: string, month?: number, year?: numb
       amountPaid: 0,
       overpayment: 0,
       status: 'pending',
-      dueDate: new Date(targetYear, targetMonth - 1, lease.rentDueDate ? parseInt(lease.rentDueDate.toString()) : 1),
+      dueDate: new Date(targetYear, targetMonth - 1, 5),
     } as any);
 
     breakdown = (await breakdownRepo.save(newBreakdown)) as unknown as MonthlyRentBreakdown;
@@ -686,6 +763,35 @@ router.patch('/:breakdownId/update-charges', authenticate, async (req: Authentic
     const updatedBreakdown = await breakdownRepo.findOne({
       where: { id: breakdownId }
     });
+
+    // Log agent transaction if agent updated the invoice
+    if (req.user.role === 'agent' && updatedBreakdown) {
+      try {
+        const chargesAdded = penaltyNum + elecReconnNum + waterReconnNum + otherNum;
+        await agentTransactionService.logTransaction({
+          agentId: req.user.userId,
+          actionType: 'invoice_updated',
+          relatedEntityId: breakdownId,
+          relatedEntityType: 'invoice',
+          description: `Updated invoice charges, added KES ${chargesAdded.toLocaleString()} in additional charges. New total: KES ${totalNum.toLocaleString()}`,
+          metadata: {
+            previousTotal: breakdown.totalDue,
+            newTotal: totalNum,
+            additionalCharges: {
+              penalty: penaltyNum,
+              electricityReconnection: elecReconnNum,
+              waterReconnection: waterReconnNum,
+              other: otherNum,
+            },
+            description: additionalChargesDescription,
+            leaseId: breakdown.leaseId,
+          },
+        });
+        console.log('✅ Invoice update transaction logged');
+      } catch (transError: any) {
+        console.warn('⚠️ Failed to log invoice update transaction:', transError.message);
+      }
+    }
 
     console.log('✅ Invoice charges updated successfully');
     return res.status(200).json({

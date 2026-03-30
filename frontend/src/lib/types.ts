@@ -78,9 +78,19 @@ export interface Landlord {
   name: string;
   email: string;
   phone?: string;
-  bankDetails?: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  notificationType: string;
+  relatedEntityType?: string;
+  relatedEntityId?: string;
+  isRead: boolean;
+  readAt?: string;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface MenuItem {
@@ -88,15 +98,4 @@ export interface MenuItem {
   href: string;
   icon: string;
   description?: string;
-}
-
-export interface Notification {
-  id: number;
-  userId: number;
-  title: string;
-  message: string;
-  type: string;
-  read: boolean;
-  createdAt: string;
-  updatedAt: string;
 }

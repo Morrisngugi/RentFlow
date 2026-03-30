@@ -16,6 +16,7 @@ import tenantRoutes from './routes/tenants';
 import unitTenantRoutes from './routes/unit-tenants';
 import roomTypePricingRoutes from './routes/room-type-pricing';
 import leaseRoutes from './routes/leases';
+import notificationRoutes from './routes/notifications';
 
 const app: Express = express();
 
@@ -58,6 +59,7 @@ app.use('/api/v1/properties', unitTenantRoutes);
 app.use('/api/v1/landlords', landlordRoutes);
 app.use('/api/v1/tenants', tenantRoutes);
 app.use('/api/v1/leases', leaseRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
