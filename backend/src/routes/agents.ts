@@ -51,6 +51,135 @@ router.get('/', authenticate, checkUserActive, async (req: AuthenticatedRequest,
 });
 
 /**
+ * GET /api/v1/agents/me/stats
+ * Get agent dashboard statistics (properties, tenants, leases, complaints)
+ */
+router.get('/me/stats', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        error: {
+          status: 401,
+          message: 'Unauthorized',
+          code: 'UNAUTHORIZED',
+        },
+      });
+    }
+
+    const agentId = req.user.userId;
+    const { Property } = await import('../entities/property/Property');
+    const { Lease } = await import('../entities/lease/Lease');
+    const { Complaint } = await import('../entities/complaint/Complaint');
+    const { AppDataSource } = await import('../config/database');
+
+    // Count properties created by this agent
+    const propertyRepo = AppDataSource.getRepository(Property);
+    const propertiesCount = await propertyRepo.count({ where: { agentId } });
+
+    // Count leases for properties created by this agent
+    const leaseRepo = AppDataSource.getRepository(Lease);
+    const leases = await leaseRepo
+      .createQueryBuilder('lease')
+      .leftJoinAndSelect('lease.property', 'property')
+      .where('property.agentId = :agentId', { agentId })
+      .andWhere('lease.status = :status', { status: 'active' })
+      .getMany();
+
+    const activeLeases = leases.length;
+
+    // Count unique tenants managed by this agent (tenants in leases of agent's properties)
+    const uniqueTenants = new Set(leases.map(l => l.tenantId)).size;
+
+    // Count complaints for properties managed by this agent
+    const complaintRepo = AppDataSource.getRepository(Complaint);
+    const complaints = await complaintRepo
+      .createQueryBuilder('complaint')
+      .leftJoinAndSelect('complaint.lease', 'lease')
+      .leftJoinAndSelect('lease.property', 'property')
+      .where('property.agentId = :agentId', { agentId })
+      .getMany();
+
+    const openComplaints = complaints.filter(c => c.status === 'open').length;
+
+    return res.status(200).json({
+      message: 'Agent statistics retrieved successfully',
+      data: {
+        assignedProperties: propertiesCount,
+        managedTenants: uniqueTenants,
+        activeLeases,
+        openComplaints,
+      },
+    });
+  } catch (error: any) {
+    console.error('❌ Error fetching agent stats:', error);
+    return res.status(500).json({
+      error: {
+        status: 500,
+        message: error.message,
+        code: 'AGENT_STATS_ERROR',
+      },
+    });
+  }
+});
+
+/**
+ * GET /api/v1/agents/me/complaints
+ * Get recent complaints for agent's properties
+ */
+router.get('/me/complaints', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        error: {
+          status: 401,
+          message: 'Unauthorized',
+          code: 'UNAUTHORIZED',
+        },
+      });
+    }
+
+    const agentId = req.user.userId;
+    const limit = parseInt(req.query.limit as string) || 5;
+    const { Complaint } = await import('../entities/complaint/Complaint');
+    const { AppDataSource } = await import('../config/database');
+
+    const complaintRepo = AppDataSource.getRepository(Complaint);
+    const complaints = await complaintRepo
+      .createQueryBuilder('complaint')
+      .leftJoinAndSelect('complaint.lease', 'lease')
+      .leftJoinAndSelect('lease.property', 'property')
+      .leftJoinAndSelect('complaint.tenant', 'tenant')
+      .where('property.agentId = :agentId', { agentId })
+      .orderBy('complaint.createdAt', 'DESC')
+      .take(limit)
+      .getMany();
+
+    return res.status(200).json({
+      message: 'Agent complaints retrieved successfully',
+      data: complaints.map(c => ({
+        id: c.id,
+        title: c.title,
+        description: c.description,
+        type: c.complaintType,
+        status: c.status,
+        property: (c.lease?.property) ? { id: c.lease.property.id, name: c.lease.property.name } : null,
+        tenant: c.tenant ? { id: c.tenant.id, name: `${c.tenant.firstName} ${c.tenant.lastName}` } : null,
+        createdAt: c.createdAt,
+      })),
+    });
+  } catch (error: any) {
+    console.error('❌ Error fetching agent complaints:', error);
+    return res.status(500).json({
+      error: {
+        status: 500,
+        message: error.message,
+        code: 'AGENT_COMPLAINTS_ERROR',
+      },
+    });
+  }
+});
+
+/**
  * GET /api/v1/agents/:id
  * Get agent by ID
  * Query params: ?detailed=true (includes properties and units count)

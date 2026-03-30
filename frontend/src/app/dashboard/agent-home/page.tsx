@@ -45,31 +45,12 @@ export default function AgentDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch complaints to show stats
-      const complaints = await apiClient.getMyComplaints();
-      
-      // Ensure complaints is an array
-      const complaintsList = Array.isArray(complaints) ? complaints : [];
-      
-      // Calculate stats
-      const stats: AgentStats = {
-        assignedProperties: 0,
-        managedTenants: 0,
-        activeLeases: 0,
-        openComplaints: complaintsList.filter((c: any) => c.status === 'open').length,
-      };
+      // Fetch agent dashboard stats
+      const agentStats = await apiClient.getAgentStats();
+      const agentComplaints = await apiClient.getAgentComplaints(5);
 
-      // Filter recent complaints (last 5)
-      if (complaintsList.length > 0) {
-        const recent = complaintsList
-          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, 5);
-        setRecentComplaints(recent);
-      } else {
-        setRecentComplaints([]);
-      }
-
-      setStats(stats);
+      setStats(agentStats);
+      setRecentComplaints(agentComplaints);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setRecentComplaints([]);
@@ -139,11 +120,11 @@ export default function AgentDashboard() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Assigned Properties */}
+        {/* Properties */}
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm font-medium">Assigned Properties</p>
+              <p className="text-blue-100 text-sm font-medium">Properties</p>
               <p className="text-3xl font-bold mt-2">{stats.assignedProperties}</p>
             </div>
             <div className="text-5xl opacity-20">🏠</div>

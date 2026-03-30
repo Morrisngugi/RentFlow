@@ -10,6 +10,7 @@ import {
 import { Lease } from '../lease/Lease';
 import { User } from '../User';
 import { ComplaintAttachment } from './ComplaintAttachment';
+import { ComplaintReply } from './ComplaintReply';
 
 @Entity('complaints')
 export class Complaint {
@@ -68,5 +69,10 @@ export class Complaint {
     cascade: true,
   })
   attachments!: ComplaintAttachment[];
+
+  @OneToMany(() => ComplaintReply, (reply) => reply.complaint, {
+    cascade: true,
+  })
+  replies!: ComplaintReply[];
 }
 
