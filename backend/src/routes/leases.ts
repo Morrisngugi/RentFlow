@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { AppDataSource } from '../config/database';
 import { Lease } from '../entities/lease/Lease';
@@ -156,7 +156,7 @@ router.post('/:leaseId/water-meter-reading', authenticate, async (req: Authentic
  * POST /api/v1/leases/:leaseId/payments
  * Record a payment for a lease
  */
-router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('📋 Recording payment for lease:', req.params.leaseId);
     
@@ -167,8 +167,8 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
     const { leaseId } = req.params;
     const { amount, paymentMethod, paymentDate, month, year, waterMeterReading } = req.body;
 
-    // Validate required fields
-    if (!amount || !paymentMethod || !paymentDate || !month || !year) {
+    // Validate required fields (amount can be 0 for invoice generation, so check for undefined/null specifically)
+    if (amount === undefined || amount === null || !paymentMethod || !paymentDate || !month || !year) {
       throw new ValidationError('amount, paymentMethod, paymentDate, month, and year are required', {
         received: { amount, paymentMethod, paymentDate, month, year },
       });
@@ -412,11 +412,11 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
       });
     } catch (err: any) {
       console.error('❌ Error in payment recording:', err.message);
-      throw new DatabaseError(err.message, 'payment_recording');
+      return next(err);
     }
   } catch (error: any) {
     console.error('❌ Payment recording error:', error.message);
-    throw error;
+    return next(error);
   }
 });
 
