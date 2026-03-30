@@ -338,13 +338,22 @@ export class ApiClient {
     }
   }
 
-  async getAgentComplaints(limit: number = 5): Promise<any[]> {
+  async getAgentComplaints(limit: number = 100, offset: number = 0): Promise<any> {
     try {
-      const response = await this.axiosInstance.get<any>(`/agents/me/complaints?limit=${limit}`);
-      return Array.isArray(response.data?.data) ? response.data.data : [];
+      const response = await this.axiosInstance.get<any>(`/agents/me/complaints?limit=${limit}&offset=${offset}`);
+      return response.data?.data ? {
+        complaints: Array.isArray(response.data.data) ? response.data.data : [],
+        pagination: response.data.pagination || { total: 0, limit, offset, hasMore: false },
+      } : {
+        complaints: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+      };
     } catch (error) {
       console.error('Failed to fetch agent complaints:', error);
-      return [];
+      return {
+        complaints: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+      };
     }
   }
 }

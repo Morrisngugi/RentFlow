@@ -139,20 +139,22 @@ router.get('/me/complaints', authenticate, checkUserActive, async (req: Authenti
     }
 
     const agentId = req.user.userId;
-    const limit = parseInt(req.query.limit as string) || 5;
+    const limit = parseInt(req.query.limit as string) || 100;
+    const offset = parseInt(req.query.offset as string) || 0;
     const { Complaint } = await import('../entities/complaint/Complaint');
     const { AppDataSource } = await import('../config/database');
 
     const complaintRepo = AppDataSource.getRepository(Complaint);
-    const complaints = await complaintRepo
+    const [complaints, total] = await complaintRepo
       .createQueryBuilder('complaint')
       .leftJoinAndSelect('complaint.lease', 'lease')
       .leftJoinAndSelect('lease.property', 'property')
       .leftJoinAndSelect('complaint.tenant', 'tenant')
       .where('property.agentId = :agentId', { agentId })
       .orderBy('complaint.createdAt', 'DESC')
+      .skip(offset)
       .take(limit)
-      .getMany();
+      .getManyAndCount();
 
     return res.status(200).json({
       message: 'Agent complaints retrieved successfully',
@@ -163,9 +165,22 @@ router.get('/me/complaints', authenticate, checkUserActive, async (req: Authenti
         type: c.complaintType,
         status: c.status,
         property: (c.lease?.property) ? { id: c.lease.property.id, name: c.lease.property.name } : null,
-        tenant: c.tenant ? { id: c.tenant.id, name: `${c.tenant.firstName} ${c.tenant.lastName}` } : null,
+        tenant: c.tenant ? { 
+          id: c.tenant.id, 
+          name: `${c.tenant.firstName} ${c.tenant.lastName}`,
+          email: c.tenant.email,
+          phone: c.tenant.phoneNumber
+        } : null,
+        lease: c.lease ? { id: c.lease.id } : null,
         createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
       })),
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total,
+      },
     });
   } catch (error: any) {
     console.error('❌ Error fetching agent complaints:', error);

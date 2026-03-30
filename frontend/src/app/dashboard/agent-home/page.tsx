@@ -47,10 +47,10 @@ export default function AgentDashboard() {
     try {
       // Fetch agent dashboard stats
       const agentStats = await apiClient.getAgentStats();
-      const agentComplaints = await apiClient.getAgentComplaints(5);
+      const agentComplaintsResponse = await apiClient.getAgentComplaints(5);
 
       setStats(agentStats);
-      setRecentComplaints(agentComplaints);
+      setRecentComplaints(agentComplaintsResponse.complaints || []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setRecentComplaints([]);
@@ -217,6 +217,11 @@ export default function AgentDashboard() {
             <Link href="/dashboard/tenants">
               <button className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-lg hover:shadow-lg transition-all text-left flex items-center gap-2">
                 <span>👥</span> Manage Tenants
+              </button>
+            </Link>
+            <Link href="/dashboard/agent-complaints">
+              <button className="w-full px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold rounded-lg hover:shadow-lg transition-all text-left flex items-center gap-2">
+                <span>⚠️</span> View All Complaints
               </button>
             </Link>
             <Link href="/dashboard/leases">
