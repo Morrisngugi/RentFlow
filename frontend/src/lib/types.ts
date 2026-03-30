@@ -99,3 +99,29 @@ export interface MenuItem {
   icon: string;
   description?: string;
 }
+
+export interface Complaint {
+  id: string;
+  leaseId: string;
+  title: string;
+  description: string;
+  complaintType: 'maintenance' | 'billing' | 'safety' | 'noise' | 'other';
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MonthlyRentBreakdown {
+  id: string;
+  leaseId: string;
+  month: number;
+  year: number;
+  baseRent: number;
+  additionalCharges: number;
+  securityDeposit: number;
+  totalDue: number;
+  amountPaid: number;
+  dueDate: string;
+  createdAt: string;
+  updatedAt: string;
+}

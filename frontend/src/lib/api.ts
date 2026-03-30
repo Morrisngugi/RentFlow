@@ -152,6 +152,96 @@ export class ApiClient {
       return 0;
     }
   }
+
+  // Complaint methods
+  async createComplaint(data: {
+    leaseId: string;
+    title: string;
+    description: string;
+    complaintType: 'maintenance' | 'billing' | 'safety' | 'noise' | 'other';
+  }): Promise<any> {
+    try {
+      const response = await this.axiosInstance.post('/complaints', data);
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to create complaint:', error);
+      throw error;
+    }
+  }
+
+  async getMyComplaints(): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>('/complaints/my-complaints');
+      const complaints = response.data?.data?.complaints || response.data?.complaints || [];
+      return Array.isArray(complaints) ? complaints : [];
+    } catch (error) {
+      console.error('Failed to fetch complaints:', error);
+      return [];
+    }
+  }
+
+  async getComplaintById(complaintId: string): Promise<any> {
+    try {
+      const response = await this.axiosInstance.get(`/complaints/${complaintId}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to fetch complaint:', error);
+      throw error;
+    }
+  }
+
+  async updateComplaintStatus(
+    complaintId: string,
+    status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  ): Promise<any> {
+    try {
+      const response = await this.axiosInstance.patch(`/complaints/${complaintId}/status`, { status });
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to update complaint status:', error);
+      throw error;
+    }
+  }
+
+  // Lease and payment methods
+  async getTenantLeases(tenantId: number | string): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>(`/leases/by-tenant/${tenantId}`);
+      const leases = response.data?.data || [];
+      if (Array.isArray(leases)) {
+        return leases;
+      } else if (leases && typeof leases === 'object') {
+        return [leases];
+      }
+      return [];
+    } catch (error) {
+      console.error('Failed to fetch tenant leases:', error);
+      return [];
+    }
+  }
+
+  async getMonthlyBreakdown(leaseId: string, month: number, year: number): Promise<any> {
+    try {
+      const response = await this.axiosInstance.get<any>(
+        `/leases/${leaseId}/monthly-breakdown?month=${month}&year=${year}`
+      );
+      return response.data?.data || null;
+    } catch (error) {
+      console.error('Failed to fetch monthly breakdown:', error);
+      return null;
+    }
+  }
+
+  async getPaymentHistory(leaseId: string): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>(`/leases/${leaseId}/payment-history`);
+      const history = response.data?.data || [];
+      return Array.isArray(history) ? history : [];
+    } catch (error) {
+      console.error('Failed to fetch payment history:', error);
+      return [];
+    }
+  }
 }
 
 // Export singleton instance
