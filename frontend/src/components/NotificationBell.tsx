@@ -65,7 +65,8 @@ export default function NotificationBell({ userRole }: NotificationBellProps) {
     try {
       // Fetch complaint details
       const complaintId = parseInt(notification.relatedEntityId);
-      const complaints = await apiClient.getAgentComplaints(100);
+      const response = await apiClient.getAgentComplaints(1000);
+      const complaints = response.complaints || [];
       const complaint = complaints.find((c: any) => c.id === complaintId);
 
       if (complaint) {
