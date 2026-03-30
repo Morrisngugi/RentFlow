@@ -242,6 +242,29 @@ export class ApiClient {
       return [];
     }
   }
+
+  // Landlord and Agent payment methods
+  async getLandlordPayments(): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>('/payments/landlord-payments');
+      const payments = response.data?.data || [];
+      return Array.isArray(payments) ? payments : [];
+    } catch (error) {
+      console.error('Failed to fetch landlord payments:', error);
+      return [];
+    }
+  }
+
+  async getAgentPayments(): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>('/payments/agent-payments');
+      const payments = response.data?.data || [];
+      return Array.isArray(payments) ? payments : [];
+    } catch (error) {
+      console.error('Failed to fetch agent payments:', error);
+      return [];
+    }
+  }
 }
 
 // Export singleton instance

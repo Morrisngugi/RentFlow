@@ -1,26 +1,110 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ApiClient } from '@/lib/api';
 
 interface Payment {
   id: string;
-  property: string;
-  tenant: string;
+  leaseId?: string;
+  property?: string;
+  tenant?: string;
   amount: number;
   dueDate: string;
   paidDate?: string;
+  paymentMethod?: string;
   status: 'paid' | 'pending' | 'overdue';
 }
 
 export default function PaymentsPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
 
+  const apiClient = new ApiClient();
+
   useEffect(() => {
-    // TODO: Fetch payments from API
-    setLoading(false);
+    const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+    if (userStr) {
+      const userData = JSON.parse(userStr);
+      setUser(userData);
+    }
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchPayments();
+    }
+  }, [user]);
+
+  const fetchPayments = async () => {
+    try {
+      if (user.role === 'tenant') {
+        // For tenants, fetch their lease payments and current month breakdown
+        const leases = await apiClient.getTenantLeases(user.id);
+        const allPayments: Payment[] = [];
+
+        for (const lease of leases) {
+          // Get current month breakdown (invoice/bill due)
+          const currentDate = new Date();
+          const breakdown = await apiClient.getMonthlyBreakdown(
+            lease.id,
+            currentDate.getMonth() + 1,
+            currentDate.getFullYear()
+          );
+          
+          if (breakdown) {
+            // Determine status based on payment status
+            let status: 'paid' | 'pending' | 'overdue' = 'pending';
+            if (breakdown.amountPaid >= breakdown.totalDue) {
+              status = 'paid';
+            } else if (new Date(breakdown.dueDate) < new Date() && breakdown.amountPaid < breakdown.totalDue) {
+              status = 'overdue';
+            }
+
+            allPayments.push({
+              id: `invoice-${breakdown.id}`,
+              amount: breakdown.totalDue,
+              dueDate: breakdown.dueDate,
+              paidDate: breakdown.amountPaid > 0 ? new Date().toISOString() : undefined,
+              paymentMethod: breakdown.amountPaid > 0 ? 'recorded' : undefined,
+              status: status,
+            });
+          }
+
+          // Also get actual payment history
+          const history = await apiClient.getPaymentHistory(lease.id);
+          if (Array.isArray(history) && history.length > 0) {
+            allPayments.push(...history.map((h: any) => ({
+              id: h.id,
+              amount: h.amount,
+              dueDate: h.dueDate || h.createdAt,
+              paidDate: h.paidDate || h.transactionDate,
+              paymentMethod: h.paymentMethod,
+              status: h.status || 'paid',
+            })));
+          }
+        }
+
+        setPayments(allPayments.filter(p => p));
+      } else if (user.role === 'landlord') {
+        // For landlords, fetch all tenant payments from their properties
+        const allPayments = await apiClient.getLandlordPayments?.() || [];
+        setPayments(allPayments);
+      } else if (user.role === 'agent') {
+        // For agents, fetch all payments for properties they manage
+        const allPayments = await apiClient.getAgentPayments?.() || [];
+        setPayments(allPayments);
+      }
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+      setPayments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -35,47 +119,95 @@ export default function PaymentsPage() {
     }
   };
 
-  const filteredPayments = payments.filter(payment => 
+  const calculateStats = () => {
+    const stats = {
+      totalExpected: 0,
+      paid: 0,
+      pending: 0,
+      overdue: 0,
+    };
+
+    payments.forEach((payment) => {
+      const amount = typeof payment.amount === 'string' ? parseFloat(payment.amount) : payment.amount;
+      stats.totalExpected += amount;
+      if (payment.status === 'paid') {
+        stats.paid += amount;
+      } else if (payment.status === 'pending') {
+        stats.pending += amount;
+      } else if (payment.status === 'overdue') {
+        stats.overdue += amount;
+      }
+    });
+
+    return stats;
+  };
+
+  const filteredPayments = payments.filter((payment) =>
     filter === 'all' ? true : payment.status === filter
   );
 
+  const stats = calculateStats();
+  const formatCurrency = (amount: number | string) => {
+    // Convert to number and remove any leading zeros
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return `KES ${numAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+  const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading payments...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Payment Tracking</h1>
-        <p className="text-gray-600 text-lg">Monitor rental payments and income</p>
+        <p className="text-gray-600 text-lg">
+          {user?.role === 'tenant'
+            ? 'Your rental payment history'
+            : user?.role === 'landlord'
+            ? 'Monitor rental payments and income'
+            : 'Track payments for managed properties'}
+        </p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-blue-600">
           <p className="text-gray-600 text-sm font-medium">Total Expected</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">KES 0</p>
+          <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(stats.totalExpected)}</p>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-green-600">
           <p className="text-green-600 text-sm font-medium">Paid</p>
-          <p className="text-3xl font-bold text-green-600 mt-2">KES 0</p>
+          <p className="text-3xl font-bold text-green-600 mt-2">{formatCurrency(stats.paid)}</p>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-yellow-600">
           <p className="text-yellow-600 text-sm font-medium">Pending</p>
-          <p className="text-3xl font-bold text-yellow-600 mt-2">KES 0</p>
+          <p className="text-3xl font-bold text-yellow-600 mt-2">{formatCurrency(stats.pending)}</p>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-red-600">
           <p className="text-red-600 text-sm font-medium">Overdue</p>
-          <p className="text-3xl font-bold text-red-600 mt-2">KES 0</p>
+          <p className="text-3xl font-bold text-red-600 mt-2">{formatCurrency(stats.overdue)}</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="mb-6 flex gap-2">
-        {['all', 'paid', 'pending', 'overdue'].map(status => (
+      <div className="mb-6 flex gap-2 flex-wrap">
+        {['all', 'paid', 'pending', 'overdue'].map((status) => (
           <button
             key={status}
             onClick={() => setFilter(status)}
             className={`px-4 py-2 rounded-lg font-medium capitalize transition-colors ${
               filter === status
-                ? 'bg-rentflow-blue text-white'
+                ? 'bg-blue-600 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
@@ -86,34 +218,70 @@ export default function PaymentsPage() {
 
       {/* Payments Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        {payments.length === 0 ? (
+        {filteredPayments.length === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-gray-600 text-lg">No payments found</p>
+            <div className="text-5xl mb-4">💰</div>
+            <p className="text-gray-600 text-lg">
+              {payments.length === 0 ? 'No payments found' : `No ${filter} payments`}
+            </p>
+            {payments.length === 0 && user?.role === 'tenant' && (
+              <p className="text-gray-500 text-sm mt-2">Your payment history will appear here once you have lease payments.</p>
+            )}
           </div>
         ) : (
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Property</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Tenant</th>
+                {(user?.role === 'landlord' || user?.role === 'agent') && (
+                  <>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Property</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Tenant</th>
+                  </>
+                )}
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Amount</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Due Date</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Paid Date</th>
+                {user?.role === 'tenant' && (
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Method</th>
+                )}
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
               </tr>
             </thead>
             <tbody>
               {filteredPayments.map((payment) => (
                 <tr key={payment.id} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-900">{payment.property}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{payment.tenant}</td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">KES {payment.amount.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{new Date(payment.dueDate).toLocaleDateString()}</td>
+                  {(user?.role === 'landlord' || user?.role === 'agent') && (
+                    <>
+                      <td className="px-6 py-4 text-sm text-gray-900">{payment.property || '-'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{payment.tenant || '-'}</td>
+                    </>
+                  )}
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{formatCurrency(payment.amount)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{formatDate(payment.dueDate)}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {payment.paidDate ? new Date(payment.paidDate).toLocaleDateString() : '-'}
+                    {payment.paidDate ? formatDate(payment.paidDate) : '-'}
                   </td>
+                  {user?.role === 'tenant' && (
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {payment.paymentMethod ? (
+                        <>
+                          {payment.paymentMethod === 'bank_transfer' && '🏦'}
+                          {payment.paymentMethod === 'mobile_money' && '📱'}
+                          {payment.paymentMethod === 'cash' && '💵'}
+                          {payment.paymentMethod === 'cheque' && '📄'}
+                          {' ' + payment.paymentMethod.replace('_', ' ')}
+                        </>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                  )}
                   <td className="px-6 py-4 text-sm">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(payment.status)}`}>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(
+                        payment.status
+                      )}`}
+                    >
                       {payment.status}
                     </span>
                   </td>
