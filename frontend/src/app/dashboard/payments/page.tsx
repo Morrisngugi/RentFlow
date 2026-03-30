@@ -284,13 +284,17 @@ export default function PaymentsPage() {
             </thead>
             <tbody>
               {filteredPayments.map((payment) => {
-                // Calculate amount to display based on payment status
+                // Calculate amount to display based on current filter tab
                 const totalDue = typeof payment.amount === 'string' ? parseFloat(payment.amount) : payment.amount;
                 const amountPaid = typeof payment.amountPaid === 'string' ? parseFloat(payment.amountPaid || '0') : (payment.amountPaid || 0);
                 const balanceRemaining = totalDue - amountPaid;
                 
-                // Show balance remaining for unpaid items, amount paid for paid items
-                const displayAmount = payment.status === 'paid' ? amountPaid : balanceRemaining;
+                // Show the appropriate amount based on which tab/filter is being viewed
+                let displayAmount = balanceRemaining;
+                if (filter === 'paid') {
+                  displayAmount = amountPaid; // Show amount PAID in paid tab
+                }
+                // For pending, overdue, and all tabs: show balance remaining
                 
                 return (
                   <tr key={payment.id} className="border-b border-gray-200 hover:bg-gray-50">
