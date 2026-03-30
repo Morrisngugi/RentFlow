@@ -18,6 +18,7 @@ import roomTypePricingRoutes from './routes/room-type-pricing';
 import leaseRoutes from './routes/leases';
 import notificationRoutes from './routes/notifications';
 import complaintRoutes from './routes/complaints';
+import paymentRoutes from './routes/payments';
 
 const app: Express = express();
 
@@ -60,6 +61,7 @@ app.use('/api/v1/properties', unitTenantRoutes);
 app.use('/api/v1/landlords', landlordRoutes);
 app.use('/api/v1/tenants', tenantRoutes);
 app.use('/api/v1/leases', leaseRoutes);
+app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/complaints', complaintRoutes);
 
