@@ -223,11 +223,21 @@ export class ApiClient {
   async getMonthlyBreakdown(leaseId: string, month: number, year: number): Promise<any> {
     try {
       const response = await this.axiosInstance.get<any>(
-        `/leases/${leaseId}/monthly-breakdown?month=${month}&year=${year}`
+        `/leases/${leaseId}/monthly-breakdown?month=${month}&year=${year}`,
+        {
+          validateStatus: (status) => status === 200 || status === 404, // Don't throw on 404
+        }
       );
+      // Return null for 404 (no data for this month) or return data for 200
+      if (response.status === 404) {
+        return null;
+      }
       return response.data?.data || null;
-    } catch (error) {
-      console.error('Failed to fetch monthly breakdown:', error);
+    } catch (error: any) {
+      // Only log unexpected errors (not 404)
+      if (error.response?.status !== 404) {
+        console.error('Failed to fetch monthly breakdown:', error);
+      }
       return null;
     }
   }

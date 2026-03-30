@@ -73,13 +73,20 @@ export default function TenantDashboard() {
         if (leaseData?.id) {
           // Fetch current month breakdown
           const now = new Date();
-          const breakdownData = await apiClient.getMonthlyBreakdown(
-            leaseData.id,
-            now.getMonth() + 1,
-            now.getFullYear()
-          );
-          if (breakdownData) {
-            setCurrentBreakdown(breakdownData);
+          try {
+            const breakdownData = await apiClient.getMonthlyBreakdown(
+              leaseData.id,
+              now.getMonth() + 1,
+              now.getFullYear()
+            );
+            if (breakdownData) {
+              setCurrentBreakdown(breakdownData);
+            }
+          } catch (err: any) {
+            // Silently skip if no breakdown exists for current month (404)
+            if (err.response?.status !== 404) {
+              console.error('Error fetching monthly breakdown:', err);
+            }
           }
 
           // Fetch payment history
