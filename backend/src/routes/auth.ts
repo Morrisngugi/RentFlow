@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { authService } from '../services/AuthService';
@@ -30,7 +30,7 @@ async function validateRequest(data: any, dtoClass: any) {
  * POST /api/v1/auth/register
  * Register a new user
  */
-router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/register', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('📋 Register request received for:', req.body.email);
     
@@ -68,19 +68,11 @@ router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
     });
 
     if (error.message.includes('already')) {
-      return res.status(409).json({
-        success: false,
-        error: {
-          status: 409,
-          code: 'EMAIL_CONFLICT',
-          message: 'Email is already registered',
-          details: { email: req.body?.email },
-        },
-      });
+      return next(new ConflictError('Email is already registered', { email: req.body?.email }));
     }
 
     // Let error handler middleware handle it
-    throw error;
+    return next(error);
   }
 });
 
@@ -88,7 +80,7 @@ router.post('/register', async (req: AuthenticatedRequest, res: Response) => {
  * POST /api/v1/auth/login
  * Authenticate user and return JWT token
  */
-router.post('/login', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/login', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('📋 Login request for:', req.body.email);
     
@@ -116,11 +108,11 @@ router.post('/login', async (req: AuthenticatedRequest, res: Response) => {
       error: error.message,
     });
 
-    if (error.message.includes('not found') || error.message.includes('incorrect')) {
-      throw new AuthenticationError('Invalid email or password');
+    if (error.message.includes('not found') || error.message.includes('incorrect') || error.message.includes('Invalid')) {
+      return next(new AuthenticationError('Invalid email or password'));
     }
 
-    throw error;
+    return next(error);
   }
 });
 
@@ -128,7 +120,7 @@ router.post('/login', async (req: AuthenticatedRequest, res: Response) => {
  * GET /api/v1/auth/profile
  * Get authenticated user's profile
  */
-router.get('/profile', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/profile', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('📋 Fetching profile for user:', req.user?.userId);
     
@@ -164,7 +156,7 @@ router.get('/profile', authenticate, checkUserActive, async (req: AuthenticatedR
       userId: req.user?.userId,
       error: error.message,
     });
-    throw error;
+    return next(error);
   }
 });
 
@@ -172,7 +164,7 @@ router.get('/profile', authenticate, checkUserActive, async (req: AuthenticatedR
  * PUT /api/v1/auth/profile
  * Update authenticated user's profile
  */
-router.put('/profile', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
+router.put('/profile', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('📋 Updating profile for user:', req.user?.userId);
     
@@ -213,7 +205,7 @@ router.put('/profile', authenticate, checkUserActive, async (req: AuthenticatedR
       error: error.message,
       stack: error.stack,
     });
-    throw error;
+    return next(error);
   }
 });
 
@@ -221,7 +213,7 @@ router.put('/profile', authenticate, checkUserActive, async (req: AuthenticatedR
  * POST /api/v1/auth/change-password
  * Change user password
  */
-router.post('/change-password', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/change-password', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('📋 Change password request for:', req.user?.userId);
     
@@ -253,10 +245,10 @@ router.post('/change-password', authenticate, async (req: AuthenticatedRequest, 
     });
 
     if (error.message.includes('incorrect')) {
-      throw new ValidationError('Current password is incorrect');
+      return next(new ValidationError('Current password is incorrect'));
     }
 
-    throw error;
+    return next(error);
   }
 });
 
@@ -264,7 +256,7 @@ router.post('/change-password', authenticate, async (req: AuthenticatedRequest, 
  * POST /api/v1/auth/logout
  * Logout user (mainly for frontend session management)
  */
-router.post('/logout', authenticate, (req: AuthenticatedRequest, res: Response) => {
+router.post('/logout', authenticate, (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('👤 User logged out:', req.user?.userId);
     return res.status(200).json({
@@ -273,7 +265,7 @@ router.post('/logout', authenticate, (req: AuthenticatedRequest, res: Response) 
     });
   } catch (error: any) {
     console.error('❌ Logout error:', error.message);
-    throw error;
+    return next(error);
   }
 });
 

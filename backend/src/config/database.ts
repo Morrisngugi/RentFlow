@@ -25,8 +25,10 @@ import { WaterMeterReading } from '../entities/payment/WaterMeterReading';
 import { MonthlyRentBreakdown } from '../entities/payment/MonthlyRentBreakdown';
 import { Complaint } from '../entities/complaint/Complaint';
 import { ComplaintAttachment } from '../entities/complaint/ComplaintAttachment';
+import { ComplaintReply } from '../entities/complaint/ComplaintReply';
 import { Notification } from '../entities/notification/Notification';
 import { NotificationPreference } from '../entities/notification/NotificationPreference';
+import { AgentTransaction } from '../entities/AgentTransaction';
 
 dotenv.config();
 
@@ -62,8 +64,10 @@ export const AppDataSource = new DataSource({
     MonthlyRentBreakdown,
     Complaint,
     ComplaintAttachment,
+    ComplaintReply,
     Notification,
     NotificationPreference,
+    AgentTransaction,
   ],
   migrations: [path.join(__dirname, '../migrations/**/*.{ts,js}')],
   subscribers: [path.join(__dirname, '../subscribers/**/*.{ts,js}')],

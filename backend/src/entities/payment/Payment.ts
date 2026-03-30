@@ -69,5 +69,6 @@ export class Payment {
 
   @OneToMany(() => LateFee, (fee) => fee.payment)
   lateFees!: LateFee[];
+    transactionDate: any;
 }
 

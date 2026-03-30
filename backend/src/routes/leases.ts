@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { AppDataSource } from '../config/database';
 import { Lease } from '../entities/lease/Lease';
@@ -13,6 +13,8 @@ import {
   NotFoundError,
   DatabaseError,
 } from '../errors/AppError';
+import { notificationService } from '../services/NotificationService';
+import { agentTransactionService } from '../services/AgentTransactionService';
 
 const router = Router();
 
@@ -154,7 +156,7 @@ router.post('/:leaseId/water-meter-reading', authenticate, async (req: Authentic
  * POST /api/v1/leases/:leaseId/payments
  * Record a payment for a lease
  */
-router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('📋 Recording payment for lease:', req.params.leaseId);
     
@@ -165,8 +167,8 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
     const { leaseId } = req.params;
     const { amount, paymentMethod, paymentDate, month, year, waterMeterReading } = req.body;
 
-    // Validate required fields
-    if (!amount || !paymentMethod || !paymentDate || !month || !year) {
+    // Validate required fields (amount can be 0 for invoice generation, so check for undefined/null specifically)
+    if (amount === undefined || amount === null || !paymentMethod || !paymentDate || !month || !year) {
       throw new ValidationError('amount, paymentMethod, paymentDate, month, and year are required', {
         received: { amount, paymentMethod, paymentDate, month, year },
       });
@@ -224,7 +226,7 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
           totalDue,
           amountPaid: 0,
           overpayment: 0,
-          dueDate: new Date(lease.rentDueDate),
+          dueDate: new Date(parseInt(String(year)), parseInt(String(month)) - 1, 5),
           status: 'pending',
         } as any);
 
@@ -303,6 +305,81 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
         where: { id: breakdown.id },
       });
 
+      // Send notification to tenant
+      if (amount > 0) {
+        // Payment received notification
+        try {
+          const balance = Math.max(0, totalDueNumeric - newAmountPaid);
+          await notificationService.sendPaymentNotification(lease.tenantId, {
+            amountPaid: amountPaidNumeric,
+            balance,
+            paymentDate: new Date(paymentDate),
+            status: newStatus as 'paid' | 'partial' | 'overpaid',
+          });
+          console.log('✅ Payment notification sent to tenant');
+        } catch (notifError: any) {
+          console.warn('⚠️ Failed to send payment notification:', notifError.message);
+        }
+
+        // Log agent transaction if agent is making the payment
+        if (req.user.role === 'agent') {
+          try {
+            await agentTransactionService.logTransaction({
+              agentId: req.user.userId,
+              actionType: 'payment_processed',
+              relatedEntityId: breakdown.id,
+              relatedEntityType: 'invoice',
+              description: `Processed payment of KES ${amountPaidNumeric.toLocaleString()} for lease ${leaseId}`,
+              metadata: {
+                amount: amountPaidNumeric,
+                paymentMethod,
+                tenantId: lease.tenantId,
+                leaseId,
+              },
+            });
+            console.log('✅ Payment transaction logged');
+          } catch (transError: any) {
+            console.warn('⚠️ Failed to log payment transaction:', transError.message);
+          }
+        }
+      } else {
+        // Invoice generated notification (when amount is 0)
+        try {
+          await notificationService.sendInvoiceNotification(lease.tenantId, {
+            leaseId,
+            totalDue: totalDueNumeric,
+            dueDate: breakdown.dueDate,
+            breakdownId: breakdown.id,
+          });
+          console.log('✅ Invoice notification sent to tenant');
+        } catch (notifError: any) {
+          console.warn('⚠️ Failed to send invoice notification:', notifError.message);
+        }
+
+        // Log agent transaction if agent generated the invoice
+        if (req.user.role === 'agent') {
+          try {
+            await agentTransactionService.logTransaction({
+              agentId: req.user.userId,
+              actionType: 'invoice_generated',
+              relatedEntityId: breakdown.id,
+              relatedEntityType: 'invoice',
+              description: `Generated invoice of KES ${totalDueNumeric.toLocaleString()} for lease ${leaseId}`,
+              metadata: {
+                month,
+                year,
+                totalDue: totalDueNumeric,
+                tenantId: lease.tenantId,
+                leaseId,
+              },
+            });
+            console.log('✅ Invoice generation transaction logged');
+          } catch (transError: any) {
+            console.warn('⚠️ Failed to log invoice transaction:', transError.message);
+          }
+        }
+      }
+
       return res.status(201).json({
         success: true,
         message: 'Payment recorded successfully',
@@ -335,11 +412,11 @@ router.post('/:leaseId/payments', authenticate, async (req: AuthenticatedRequest
       });
     } catch (err: any) {
       console.error('❌ Error in payment recording:', err.message);
-      throw new DatabaseError(err.message, 'payment_recording');
+      return next(err);
     }
   } catch (error: any) {
     console.error('❌ Payment recording error:', error.message);
-    throw error;
+    return next(error);
   }
 });
 
@@ -590,7 +667,7 @@ async function calculateMonthlyRent(leaseId: string, month?: number, year?: numb
       amountPaid: 0,
       overpayment: 0,
       status: 'pending',
-      dueDate: new Date(targetYear, targetMonth - 1, lease.rentDueDate ? parseInt(lease.rentDueDate.toString()) : 1),
+      dueDate: new Date(targetYear, targetMonth - 1, 5),
     } as any);
 
     breakdown = (await breakdownRepo.save(newBreakdown)) as unknown as MonthlyRentBreakdown;
@@ -687,6 +764,35 @@ router.patch('/:breakdownId/update-charges', authenticate, async (req: Authentic
       where: { id: breakdownId }
     });
 
+    // Log agent transaction if agent updated the invoice
+    if (req.user.role === 'agent' && updatedBreakdown) {
+      try {
+        const chargesAdded = penaltyNum + elecReconnNum + waterReconnNum + otherNum;
+        await agentTransactionService.logTransaction({
+          agentId: req.user.userId,
+          actionType: 'invoice_updated',
+          relatedEntityId: breakdownId,
+          relatedEntityType: 'invoice',
+          description: `Updated invoice charges, added KES ${chargesAdded.toLocaleString()} in additional charges. New total: KES ${totalNum.toLocaleString()}`,
+          metadata: {
+            previousTotal: breakdown.totalDue,
+            newTotal: totalNum,
+            additionalCharges: {
+              penalty: penaltyNum,
+              electricityReconnection: elecReconnNum,
+              waterReconnection: waterReconnNum,
+              other: otherNum,
+            },
+            description: additionalChargesDescription,
+            leaseId: breakdown.leaseId,
+          },
+        });
+        console.log('✅ Invoice update transaction logged');
+      } catch (transError: any) {
+        console.warn('⚠️ Failed to log invoice update transaction:', transError.message);
+      }
+    }
+
     console.log('✅ Invoice charges updated successfully');
     return res.status(200).json({
       success: true,
@@ -699,6 +805,119 @@ router.patch('/:breakdownId/update-charges', authenticate, async (req: Authentic
       success: false,
       message: error.message || 'Failed to update invoice charges',
     });
+  }
+});
+
+/**
+ * GET /api/v1/leases/invoices/by-tenant/:tenantId
+ * Get all available invoices for a tenant (supports pagination and date filtering)
+ */
+router.get('/invoices/by-tenant/:tenantId', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('📋 Fetching invoices for tenant:', req.params.tenantId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    const { tenantId } = req.params;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const fromDate = req.query.fromDate as string; // Optional: YYYY-MM-DD
+    const toDate = req.query.toDate as string;     // Optional: YYYY-MM-DD
+
+    try {
+      // First, get all leases for this tenant
+      const leaseRepo = AppDataSource.getRepository(Lease);
+      const leases = await leaseRepo.find({
+        where: { tenantId, status: 'active' }
+      });
+
+      if (!leases || leases.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: 'No leases found for tenant',
+          data: {
+            invoices: [],
+            total: 0,
+            limit,
+            offset,
+          },
+        });
+      }
+
+      const leaseIds = leases.map(l => l.id);
+
+      // Build query for invoices
+      const breakdownRepo = AppDataSource.getRepository(MonthlyRentBreakdown);
+      let query = breakdownRepo.createQueryBuilder('breakdown')
+        .where('breakdown.leaseId IN (:...leaseIds)', { leaseIds })
+        .orderBy('breakdown.year', 'DESC')
+        .addOrderBy('breakdown.month', 'DESC');
+
+      // Apply date filters if provided
+      if (fromDate) {
+        const [year, month] = fromDate.split('-').map(Number);
+        query = query.andWhere('(breakdown.year > :fromYear OR (breakdown.year = :fromYear AND breakdown.month >= :fromMonth))', 
+          { fromYear: year, fromMonth: month });
+      }
+      if (toDate) {
+        const [year, month] = toDate.split('-').map(Number);
+        query = query.andWhere('(breakdown.year < :toYear OR (breakdown.year = :toYear AND breakdown.month <= :toMonth))', 
+          { toYear: year, toMonth: month });
+      }
+
+      // Get total count
+      const total = await query.getCount();
+
+      // Get paginated results
+      const breakdowns = await query
+        .skip(offset)
+        .take(limit)
+        .getMany();
+
+      console.log(`✅ Found ${breakdowns.length} invoices out of ${total} total`);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Invoices retrieved successfully',
+        data: {
+          invoices: breakdowns.map(b => ({
+            id: b.id,
+            leaseId: b.leaseId,
+            month: b.month,
+            year: b.year,
+            baseRent: b.baseRent,
+            waterCharges: b.waterCharges,
+            garbageCharges: b.garbageCharges,
+            securityFee: b.securityFee,
+            penaltyCharges: b.penaltyCharges || 0,
+            electricityReconnectionFee: b.electricityReconnectionFee || 0,
+            waterReconnectionFee: b.waterReconnectionFee || 0,
+            otherCharges: b.otherCharges || 0,
+            additionalChargesDescription: b.additionalChargesDescription || '',
+            totalDue: b.totalDue,
+            amountPaid: b.amountPaid,
+            balanceRemaining: Math.max(0, b.totalDue - b.amountPaid),
+            overpayment: Math.max(0, b.overpayment),
+            status: b.status,
+            dueDate: b.dueDate,
+            createdAt: b.createdAt,
+            updatedAt: b.updatedAt,
+          })),
+          total,
+          limit,
+          offset,
+          hasMore: offset + limit < total,
+        },
+      });
+    } catch (err: any) {
+      console.error('❌ Error fetching invoices:', err.message);
+      throw new DatabaseError(err.message, 'fetch_invoices_by_tenant');
+    }
+  } catch (error: any) {
+    console.error('❌ Fetch invoices error:', error.message);
+    throw error;
   }
 });
 
