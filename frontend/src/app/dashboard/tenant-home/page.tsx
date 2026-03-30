@@ -270,7 +270,13 @@ export default function TenantDashboard() {
       {/* Action Buttons */}
       <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link href="/dashboard/invoices">
+            <button className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2">
+              <span>📄</span>
+              View Invoices
+            </button>
+          </Link>
           <Link href="/dashboard/complaints">
             <button className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2">
               <span>⚠️</span>
