@@ -64,10 +64,10 @@ export default function InvoicesPage() {
         setLeases(leaseList);
         const allInvoices: MonthlyBreakdown[] = [];
 
-        // Fetch invoices for the last 12 months
+        // Fetch invoices for the last 24 months
         for (const lease of leaseList) {
           const now = new Date();
-          for (let i = 0; i < 12; i++) {
+          for (let i = 0; i < 24; i++) {
             const dateObj = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const month = dateObj.getMonth() + 1;
             const year = dateObj.getFullYear();
@@ -77,8 +77,12 @@ export default function InvoicesPage() {
               if (breakdown) {
                 allInvoices.push(breakdown);
               }
-            } catch (err) {
-              // Continue if invoice doesn't exist for this month
+            } catch (err: any) {
+              // Silently skip months with no data (404 errors)
+              // Only log other types of errors
+              if (err.response?.status !== 404) {
+                console.error(`Error fetching breakdown for ${month}/${year}:`, err);
+              }
             }
           }
         }
