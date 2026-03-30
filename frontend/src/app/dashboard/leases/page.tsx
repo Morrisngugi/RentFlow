@@ -20,9 +20,18 @@ export default function LeasesPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      // Redirect tenants away from leases management page
+      if (user.role === 'tenant') {
+        router.push('/dashboard/tenant-home');
+        return;
+      }
+    }
     // TODO: Fetch leases from API
     setLoading(false);
-  }, []);
+  }, [router]);
 
   if (loading) {
     return <div className="text-center text-gray-600">Loading leases...</div>;

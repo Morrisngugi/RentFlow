@@ -27,6 +27,22 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    // Redirect based on role
+    if (user?.role === 'tenant') {
+      router.replace('/dashboard/tenant-home');
+      return;
+    }
+
+    if (user?.role === 'landlord') {
+      router.replace('/dashboard/landlord-home');
+      return;
+    }
+
+    if (user?.role === 'agent') {
+      router.replace('/dashboard/agent-home');
+      return;
+    }
+
     // Fetch agents from database if admin
     if (user?.role === 'admin') {
       fetchAgents();
@@ -193,124 +209,10 @@ export default function DashboardPage() {
 
   // Regular user dashboard (non-admin)
   return (
-    <div>
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-          Welcome back, {user?.name?.split(' ')[0]}
-        </h1>
-        <p className="text-gray-600 text-lg">Property Management System</p>
-      </div>
-
-      {/* Main Grid - Cards in Uniform Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Properties Card */}
-        <Link href="/dashboard/properties">
-          <div className="group h-full bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer p-6 border-t-4 border-blue-600 hover:translate-y-[-2px]">
-            <div className="flex items-start justify-between mb-4">
-              <div className="text-5xl group-hover:scale-110 transition-transform duration-300">🏠</div>
-              <div className="w-10 h-10 rounded-full bg-blue-100 group-hover:bg-blue-600 transition-colors flex items-center justify-center">
-                <span className="text-lg group-hover:text-white text-blue-600 font-bold">→</span>
-              </div>
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Properties</h3>
-            <p className="text-gray-600 text-sm">Manage all properties in your portfolio</p>
-          </div>
-        </Link>
-
-        {/* Tenants Card */}
-        <Link href="/dashboard/tenants">
-          <div className="group h-full bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer p-6 border-t-4 border-green-600 hover:translate-y-[-2px]">
-            <div className="flex items-start justify-between mb-4">
-              <div className="text-5xl group-hover:scale-110 transition-transform duration-300">👥</div>
-              <div className="w-10 h-10 rounded-full bg-green-100 group-hover:bg-green-600 transition-colors flex items-center justify-center">
-                <span className="text-lg group-hover:text-white text-green-600 font-bold">→</span>
-              </div>
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Tenants</h3>
-            <p className="text-gray-600 text-sm">Manage tenant information and records</p>
-          </div>
-        </Link>
-
-        {/* Leases Card */}
-        <Link href="/dashboard/leases">
-          <div className="group h-full bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer p-6 border-t-4 border-purple-600 hover:translate-y-[-2px]">
-            <div className="flex items-start justify-between mb-4">
-              <div className="text-5xl group-hover:scale-110 transition-transform duration-300">📄</div>
-              <div className="w-10 h-10 rounded-full bg-purple-100 group-hover:bg-purple-600 transition-colors flex items-center justify-center">
-                <span className="text-lg group-hover:text-white text-purple-600 font-bold">→</span>
-              </div>
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Leases</h3>
-            <p className="text-gray-600 text-sm">View and manage active leases</p>
-          </div>
-        </Link>
-
-        {/* Payments Card */}
-        <Link href="/dashboard/payments">
-          <div className="group h-full bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer p-6 border-t-4 border-orange-600 hover:translate-y-[-2px]">
-            <div className="flex items-start justify-between mb-4">
-              <div className="text-5xl group-hover:scale-110 transition-transform duration-300">💰</div>
-              <div className="w-10 h-10 rounded-full bg-orange-100 group-hover:bg-orange-600 transition-colors flex items-center justify-center">
-                <span className="text-lg group-hover:text-white text-orange-600 font-bold">→</span>
-              </div>
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Payments</h3>
-            <p className="text-gray-600 text-sm">Track rental payments and income</p>
-          </div>
-        </Link>
-      </div>
-
-      {/* Overview Section with Proper Whitespace */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Stats Section */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-md p-8 border-l-4 border-gray-300">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 pb-4 border-b-2 border-gray-200">Dashboard Overview</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {/* Stat Card 1 */}
-            <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border-l-4 border-blue-600">
-              <div className="text-gray-700 text-sm font-semibold mb-2 uppercase tracking-wide">Total Properties</div>
-              <div className="text-4xl font-bold text-gray-900 mb-2">0</div>
-              <p className="text-xs text-gray-600">Active properties in system</p>
-            </div>
-            
-            {/* Stat Card 2 */}
-            <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border-l-4 border-green-600">
-              <div className="text-gray-700 text-sm font-semibold mb-2 uppercase tracking-wide">Active Leases</div>
-              <div className="text-4xl font-bold text-gray-900 mb-2">0</div>
-              <p className="text-xs text-gray-600">Current active leases</p>
-            </div>
-            
-            {/* Stat Card 3 */}
-            <div className="p-6 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border-l-4 border-orange-600">
-              <div className="text-gray-700 text-sm font-semibold mb-2 uppercase tracking-wide">Pending Payments</div>
-              <div className="text-4xl font-bold text-gray-900 mb-2">0</div>
-              <p className="text-xs text-gray-600">Overdue or due soon</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions Sidebar */}
-        <div className="bg-white rounded-lg shadow-md p-8 border-l-4 border-blue-500">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 pb-4 border-b-2 border-gray-200">Quick Actions</h2>
-          <div className="space-y-3">
-            <Link href="/dashboard/properties">
-              <button className="w-full text-left px-4 py-3 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-900 font-semibold transition-colors border-l-4 border-blue-600">
-                ➕ Add Property
-              </button>
-            </Link>
-            <Link href="/dashboard/tenants">
-              <button className="w-full text-left px-4 py-3 rounded-lg bg-green-50 hover:bg-green-100 text-green-900 font-semibold transition-colors border-l-4 border-green-600">
-                ➕ Add Tenant
-              </button>
-            </Link>
-            <Link href="/dashboard/leases">
-              <button className="w-full text-left px-4 py-3 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 font-semibold transition-colors border-l-4 border-purple-600">
-                ➕ Create Lease
-              </button>
-            </Link>
-          </div>
-        </div>
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">Redirecting to your dashboard...</p>
       </div>
     </div>
   );

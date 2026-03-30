@@ -78,9 +78,19 @@ export interface Landlord {
   name: string;
   email: string;
   phone?: string;
-  bankDetails?: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  notificationType: string;
+  relatedEntityType?: string;
+  relatedEntityId?: string;
+  isRead: boolean;
+  readAt?: string;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface MenuItem {
@@ -90,13 +100,28 @@ export interface MenuItem {
   description?: string;
 }
 
-export interface Notification {
-  id: number;
-  userId: number;
+export interface Complaint {
+  id: string;
+  leaseId: string;
   title: string;
-  message: string;
-  type: string;
-  read: boolean;
+  description: string;
+  complaintType: 'maintenance' | 'billing' | 'safety' | 'noise' | 'other';
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MonthlyRentBreakdown {
+  id: string;
+  leaseId: string;
+  month: number;
+  year: number;
+  baseRent: number;
+  additionalCharges: number;
+  securityDeposit: number;
+  totalDue: number;
+  amountPaid: number;
+  dueDate: string;
   createdAt: string;
   updatedAt: string;
 }

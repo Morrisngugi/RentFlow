@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { User, LoginRequest, LoginResponse } from './types';
+import { User, LoginRequest, LoginResponse, Notification } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
@@ -8,6 +8,11 @@ const axiosInstance: AxiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
+  },
+  validateStatus: (status) => {
+    // Treat 404 as success instead of error to prevent console logging
+    // This prevents Axios from throwing for 404 responses
+    return status < 500;
   },
 });
 
@@ -110,14 +115,259 @@ export class ApiClient {
     return response.data.data;
   }
 
-  async getNotifications(): Promise<any[]> {
-    // Notifications endpoint not yet implemented in backend
-    return [];
+  async getNotifications(limit?: number, offset?: number): Promise<Notification[]> {
+    try {
+      const response = await this.axiosInstance.get<any>('/notifications', {
+        params: {
+          limit: limit || 20,
+          offset: offset || 0,
+        },
+      });
+      return response.data.data.notifications || [];
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+      return [];
+    }
   }
 
-  async markNotificationAsRead(notificationId: number): Promise<void> {
-    // Notifications endpoint not yet implemented in backend
-    return;
+  async markNotificationAsRead(notificationId: string): Promise<void> {
+    try {
+      await this.axiosInstance.patch(`/notifications/${notificationId}/read`);
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+      throw error;
+    }
+  }
+
+  async markAllNotificationsAsRead(): Promise<void> {
+    try {
+      await this.axiosInstance.patch('/notifications/mark-all-read');
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+      throw error;
+    }
+  }
+
+  async getUnreadNotificationCount(): Promise<number> {
+    try {
+      const response = await this.axiosInstance.get<any>('/notifications/unread-count');
+      return response.data.data.unreadCount || 0;
+    } catch (error) {
+      console.error('Failed to fetch unread count:', error);
+      return 0;
+    }
+  }
+
+  // Complaint methods
+  async createComplaint(data: {
+    leaseId: string;
+    title: string;
+    description: string;
+    complaintType: 'maintenance' | 'billing' | 'safety' | 'noise' | 'other';
+  }): Promise<any> {
+    try {
+      const response = await this.axiosInstance.post('/complaints', data);
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to create complaint:', error);
+      throw error;
+    }
+  }
+
+  async getMyComplaints(): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>('/complaints/my-complaints');
+      const complaints = response.data?.data?.complaints || response.data?.complaints || [];
+      return Array.isArray(complaints) ? complaints : [];
+    } catch (error) {
+      console.error('Failed to fetch complaints:', error);
+      return [];
+    }
+  }
+
+  async getComplaintById(complaintId: string): Promise<any> {
+    try {
+      const response = await this.axiosInstance.get(`/complaints/${complaintId}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to fetch complaint:', error);
+      throw error;
+    }
+  }
+
+  async updateComplaintStatus(
+    complaintId: string,
+    status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  ): Promise<any> {
+    try {
+      const response = await this.axiosInstance.patch(`/complaints/${complaintId}/status`, { status });
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to update complaint status:', error);
+      throw error;
+    }
+  }
+
+  async replyToComplaint(complaintId: string, message: string, attachmentUrls?: string[]): Promise<any> {
+    try {
+      const response = await this.axiosInstance.post(`/complaints/${complaintId}/reply`, {
+        message,
+        attachmentUrls,
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to reply to complaint:', error);
+      throw error;
+    }
+  }
+
+  async updateComplaintStatusAsAgent(
+    complaintId: string,
+    status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  ): Promise<any> {
+    try {
+      const response = await this.axiosInstance.patch(`/complaints/${complaintId}/update-status`, { status });
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to update complaint status:', error);
+      throw error;
+    }
+  }
+
+  async getComplaintReplies(complaintId: string): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get(`/complaints/${complaintId}/replies`);
+      return Array.isArray(response.data?.data) ? response.data.data : [];
+    } catch (error) {
+      console.error('Failed to fetch complaint replies:', error);
+      return [];
+    }
+  }
+
+  // Lease and payment methods
+  async getTenantLeases(tenantId: number | string): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>(`/leases/by-tenant/${tenantId}`);
+      const leases = response.data?.data || [];
+      if (Array.isArray(leases)) {
+        return leases;
+      } else if (leases && typeof leases === 'object') {
+        return [leases];
+      }
+      return [];
+    } catch (error) {
+      console.error('Failed to fetch tenant leases:', error);
+      return [];
+    }
+  }
+
+  async getMonthlyBreakdown(leaseId: string, month: number, year: number): Promise<any> {
+    try {
+      const response = await this.axiosInstance.get<any>(
+        `/leases/${leaseId}/monthly-breakdown?month=${month}&year=${year}`
+      );
+      // Return null for 404 (no data for this month) or return data for 200
+      if (response.status === 404) {
+        return null;
+      }
+      return response.data?.data || null;
+    } catch (error: any) {
+      console.error('Failed to fetch monthly breakdown:', error);
+      return null;
+    }
+  }
+
+  async getTenantInvoices(tenantId: string, limit: number = 20, offset: number = 0, fromDate?: string, toDate?: string): Promise<any> {
+    try {
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+      if (fromDate) params.append('fromDate', fromDate);
+      if (toDate) params.append('toDate', toDate);
+
+      const response = await this.axiosInstance.get<any>(
+        `/leases/invoices/by-tenant/${tenantId}?${params}`
+      );
+      return response.data?.data || { invoices: [], total: 0, limit, offset };
+    } catch (error) {
+      console.error('Failed to fetch tenant invoices:', error);
+      return { invoices: [], total: 0, limit, offset };
+    }
+  }
+
+  async getPaymentHistory(leaseId: string): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>(`/leases/${leaseId}/payment-history`);
+      const history = response.data?.data || [];
+      return Array.isArray(history) ? history : [];
+    } catch (error) {
+      console.error('Failed to fetch payment history:', error);
+      return [];
+    }
+  }
+
+  // Landlord and Agent payment methods
+  async getLandlordPayments(): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>('/payments/landlord-payments');
+      const payments = response.data?.data || [];
+      return Array.isArray(payments) ? payments : [];
+    } catch (error) {
+      console.error('Failed to fetch landlord payments:', error);
+      return [];
+    }
+  }
+
+  async getAgentPayments(): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>('/payments/agent-payments');
+      const payments = response.data?.data || [];
+      return Array.isArray(payments) ? payments : [];
+    } catch (error) {
+      console.error('Failed to fetch agent payments:', error);
+      return [];
+    }
+  }
+
+  // Agent dashboard methods
+  async getAgentStats(): Promise<any> {
+    try {
+      const response = await this.axiosInstance.get<any>('/agents/me/stats');
+      return response.data?.data || {
+        assignedProperties: 0,
+        managedTenants: 0,
+        activeLeases: 0,
+        openComplaints: 0,
+      };
+    } catch (error) {
+      console.error('Failed to fetch agent stats:', error);
+      return {
+        assignedProperties: 0,
+        managedTenants: 0,
+        activeLeases: 0,
+        openComplaints: 0,
+      };
+    }
+  }
+
+  async getAgentComplaints(limit: number = 100, offset: number = 0): Promise<any> {
+    try {
+      const response = await this.axiosInstance.get<any>(`/agents/me/complaints?limit=${limit}&offset=${offset}`);
+      return response.data?.data ? {
+        complaints: Array.isArray(response.data.data) ? response.data.data : [],
+        pagination: response.data.pagination || { total: 0, limit, offset, hasMore: false },
+      } : {
+        complaints: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+      };
+    } catch (error) {
+      console.error('Failed to fetch agent complaints:', error);
+      return {
+        complaints: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+      };
+    }
   }
 }
 
