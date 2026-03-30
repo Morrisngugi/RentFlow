@@ -277,15 +277,15 @@ export default function InvoicesPage() {
       {/* Invoice Details Modal */}
       {selectedInvoice && (
         <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
           onClick={() => setSelectedInvoice(null)}
         >
           <div
-            className="bg-white rounded-lg shadow-2xl max-w-2xl w-full my-8 overflow-y-auto max-h-[calc(100vh-4rem)]"
+            className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 flex items-center justify-between">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 flex items-center justify-between border-b border-blue-800 flex-shrink-0">
               <h2 className="text-2xl font-bold">
                 Invoice {selectedInvoice.month.toString().padStart(2, '0')}/{selectedInvoice.year}
               </h2>
@@ -298,7 +298,7 @@ export default function InvoicesPage() {
             </div>
 
             {/* Modal Content */}
-            <div className="p-8">
+            <div className="flex-1 overflow-y-auto p-8">
               {/* Invoice Breakdown */}
               <div className="mb-8">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">Breakdown</h3>
@@ -361,22 +361,22 @@ export default function InvoicesPage() {
                   <p className="text-lg font-semibold text-gray-900">{formatDate(selectedInvoice.dueDate)}</p>
                 </div>
               </div>
+            </div>
 
-              {/* Action Button */}
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setSelectedInvoice(null)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 px-6 py-3 rounded-lg font-medium transition-colors"
-                >
-                  Close
-                </button>
-                <Link
-                  href="/dashboard/payments"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors text-center"
-                >
-                  View Payment History
-                </Link>
-              </div>
+            {/* Modal Footer with Actions */}
+            <div className="border-t border-gray-200 p-6 flex gap-4 bg-gray-50 flex-shrink-0">
+              <button
+                onClick={() => setSelectedInvoice(null)}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                Close
+              </button>
+              <Link
+                href="/dashboard/payments"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors text-center"
+              >
+                View Payment History
+              </Link>
             </div>
           </div>
         </div>

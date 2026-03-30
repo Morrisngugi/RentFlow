@@ -42,6 +42,9 @@ export default function AgentComplaintsPage() {
   const [repliesLoading, setRepliesLoading] = useState(false);
   const [replies, setReplies] = useState<any[]>([]);
   const [showReplyForm, setShowReplyForm] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [showStatusConfirmation, setShowStatusConfirmation] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState<string | null>(null);
 
   useEffect(() => {
     fetchComplaints();
@@ -102,10 +105,52 @@ export default function AgentComplaintsPage() {
       setReplies(updatedReplies || []);
       setReplyMessage('');
       setShowReplyForm(false);
+      // Update local complaint status to in_progress since it was just replied to
+      setSelectedComplaint({ ...selectedComplaint, status: 'in_progress' });
+      setComplaints(complaints.map(c => c.id === selectedComplaint.id ? { ...c, status: 'in_progress' } : c));
     } catch (error) {
       console.error('Failed to send reply:', error);
     } finally {
       setRepliesLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = (newStatus: string) => {
+    if (!selectedComplaint) return;
+    setPendingStatusChange(newStatus);
+    setShowStatusConfirmation(true);
+  };
+
+  const confirmStatusUpdate = async () => {
+    if (!selectedComplaint || !pendingStatusChange) return;
+
+    setStatusUpdating(true);
+    try {
+      const response = await apiClient.updateComplaintStatusAsAgent(
+        selectedComplaint.id,
+        pendingStatusChange as 'open' | 'in_progress' | 'resolved' | 'closed'
+      );
+      
+      // Merge the response with existing complaint data to preserve all properties
+      const updatedComplaint = { ...selectedComplaint, ...response };
+      
+      // Update local state with merged data
+      setSelectedComplaint(updatedComplaint);
+      setComplaints(
+        complaints.map((c) =>
+          c.id === selectedComplaint.id ? updatedComplaint : c
+        )
+      );
+      
+      // Refresh the full list from backend to ensure sync
+      await fetchComplaints();
+      
+      setShowStatusConfirmation(false);
+      setPendingStatusChange(null);
+    } catch (error) {
+      console.error('Failed to update complaint status:', error);
+    } finally {
+      setStatusUpdating(false);
     }
   };
 
@@ -300,7 +345,7 @@ export default function AgentComplaintsPage() {
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Complaint Details</h2>
                   <p className="text-sm text-gray-600 mt-1">
-                    {getTypeIcon(selectedComplaint.type)} {selectedComplaint.type.toUpperCase()}
+                    {getTypeIcon(selectedComplaint.type)} {selectedComplaint.type?.toUpperCase() || 'UNKNOWN'}
                   </p>
                 </div>
                 <button
@@ -351,6 +396,33 @@ export default function AgentComplaintsPage() {
                         <p className="font-medium text-gray-900">
                           {new Date(selectedComplaint.createdAt).toLocaleDateString()}
                         </p>
+                      </div>
+                    </div>
+
+                    {/* Status Update Buttons */}
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <p className="text-xs font-semibold text-gray-600 mb-2">Change Status</p>
+                      <div className="flex flex-wrap gap-2">
+                        {['open', 'in_progress', 'resolved', 'closed'].map((status) => (
+                          <button
+                            key={status}
+                            onClick={() => handleUpdateStatus(status)}
+                            disabled={statusUpdating || selectedComplaint.status === status}
+                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                              selectedComplaint.status === status
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                : status === 'resolved'
+                                ? 'bg-green-100 hover:bg-green-200 text-green-700'
+                                : status === 'closed'
+                                ? 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                                : status === 'in_progress'
+                                ? 'bg-yellow-100 hover:bg-yellow-200 text-yellow-700'
+                                : 'bg-red-100 hover:bg-red-200 text-red-700'
+                            }`}
+                          >
+                            {statusUpdating && selectedComplaint.status !== status ? '...' : status.replace('_', ' ')}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -435,6 +507,44 @@ export default function AgentComplaintsPage() {
           </div>
         )}
       </div>
+
+      {/* Status Confirmation Modal */}
+      {showStatusConfirmation && pendingStatusChange && (
+        <div className="fixed inset-0 bg-black/50 z-[300] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full">
+            <div className="px-6 py-4 bg-yellow-50 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Status Change</h3>
+            </div>
+            <div className="px-6 py-4">
+              <p className="text-gray-700 mb-2">
+                Are you sure you want to change the complaint status to <span className="font-semibold">{pendingStatusChange.replace('_', ' ')}</span>?
+              </p>
+              <p className="text-sm text-gray-600">
+                This action will update the database and the tenant will receive a notification about this status change.
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowStatusConfirmation(false);
+                  setPendingStatusChange(null);
+                }}
+                disabled={statusUpdating}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 font-medium transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmStatusUpdate}
+                disabled={statusUpdating}
+                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                {statusUpdating ? 'Updating...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
