@@ -51,7 +51,30 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response, 
       });
       console.log('✅ Complaint notification sent to landlord');
     } catch (notifError: any) {
-      console.warn('⚠️ Failed to send complaint notification:', notifError.message);
+      console.warn('⚠️ Failed to send complaint notification to landlord:', notifError.message);
+    }
+
+    // Send notification to agent if property has an agent
+    try {
+      const leaseRepo = (await import('../config/database')).AppDataSource.getRepository((await import('../entities/lease/Lease')).Lease);
+      const lease = await leaseRepo.findOne({
+        where: { id: complaint.leaseId },
+        relations: ['property'],
+      });
+
+      if (lease?.property?.agentId) {
+        await notificationService.sendNotification({
+          userId: lease.property.agentId,
+          title: 'New Complaint on Your Property',
+          message: `New complaint: "${complaint.title}" on property ${lease.property.name}`,
+          notificationType: 'complaint_received',
+          relatedEntityId: complaint.id,
+          relatedEntityType: 'complaint',
+        });
+        console.log('✅ Complaint notification sent to agent');
+      }
+    } catch (agentNotifError: any) {
+      console.warn('⚠️ Failed to send complaint notification to agent:', agentNotifError.message);
     }
 
     console.log('✅ Complaint created successfully');
@@ -235,6 +258,123 @@ router.get('/stats', authenticate, async (req: AuthenticatedRequest, res: Respon
     });
   } catch (error: any) {
     console.error('❌ Fetch stats error:', error.message);
+    return next(error);
+  }
+});
+
+/**
+ * POST /api/v1/complaints/:complaintId/reply
+ * Reply to a complaint (by landlord or agent)
+ */
+router.post('/:complaintId/reply', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    const { complaintId } = req.params;
+    const { message, attachmentUrls } = req.body;
+
+    if (!message) {
+      throw new ValidationError('Message is required', { message });
+    }
+
+    const { Complaint } = await import('../entities/complaint/Complaint');
+    const { ComplaintReply } = await import('../entities/complaint/ComplaintReply');
+    const { AppDataSource } = await import('../config/database');
+
+    const complaintRepo = AppDataSource.getRepository(Complaint);
+    const complaint = await complaintRepo.findOne({
+      where: { id: complaintId },
+      relations: ['lease', 'lease.property', 'tenant'],
+    });
+
+    if (!complaint) {
+      throw new ValidationError('Complaint not found', { complaintId });
+    }
+
+    // Check authorization - only landlord or agent of the property can reply
+    if (complaint.landlordId !== req.user.userId && complaint.lease?.property?.agentId !== req.user.userId) {
+      throw new AuthorizationError('You are not authorized to reply to this complaint');
+    }
+
+    // Create reply
+    const replyRepo = AppDataSource.getRepository(ComplaintReply);
+    const reply = replyRepo.create({
+      complaintId,
+      userId: req.user.userId,
+      message,
+      attachmentUrls,
+    });
+
+    const savedReply = await replyRepo.save(reply);
+
+    // Send notification to tenant
+    try {
+      const replierName = req.user.role === 'agent' ? 'Agent' : 'Landlord';
+      await notificationService.sendNotification({
+        userId: complaint.tenantId,
+        title: `Reply to Your Complaint: ${complaint.title}`,
+        message: `${replierName} replied to your complaint: "${message.substring(0, 100)}..."`,
+        notificationType: 'complaint_reply',
+        relatedEntityId: complaintId,
+        relatedEntityType: 'complaint',
+      });
+      console.log('✅ Complaint reply notification sent to tenant');
+    } catch (notifError: any) {
+      console.warn('⚠️ Failed to send reply notification:', notifError.message);
+    }
+
+    console.log('✅ Reply created successfully');
+    return res.status(201).json({
+      success: true,
+      message: 'Reply submitted successfully',
+      data: savedReply,
+    });
+  } catch (error: any) {
+    console.error('❌ Reply creation error:', error.message);
+    return next(error);
+  }
+});
+
+/**
+ * GET /api/v1/complaints/:complaintId/replies
+ * Get all replies for a complaint
+ */
+router.get('/:complaintId/replies', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    const { complaintId } = req.params;
+
+    const { ComplaintReply } = await import('../entities/complaint/ComplaintReply');
+    const { AppDataSource } = await import('../config/database');
+
+    const replyRepo = AppDataSource.getRepository(ComplaintReply);
+    const replies = await replyRepo.find({
+      where: { complaintId },
+      relations: ['user'],
+      order: { createdAt: 'ASC' },
+    });
+
+    console.log('✅ Replies retrieved');
+    return res.status(200).json({
+      success: true,
+      message: 'Replies retrieved successfully',
+      data: replies.map(r => ({
+        id: r.id,
+        userId: r.userId,
+        userName: `${r.user.firstName} ${r.user.lastName}`,
+        userRole: r.user.role,
+        message: r.message,
+        attachmentUrls: r.attachmentUrls,
+        createdAt: r.createdAt,
+      })),
+    });
+  } catch (error: any) {
+    console.error('❌ Fetch replies error:', error.message);
     return next(error);
   }
 });

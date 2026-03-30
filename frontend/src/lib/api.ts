@@ -208,6 +208,29 @@ export class ApiClient {
     }
   }
 
+  async replyToComplaint(complaintId: string, message: string, attachmentUrls?: string[]): Promise<any> {
+    try {
+      const response = await this.axiosInstance.post(`/complaints/${complaintId}/reply`, {
+        message,
+        attachmentUrls,
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to reply to complaint:', error);
+      throw error;
+    }
+  }
+
+  async getComplaintReplies(complaintId: string): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get(`/complaints/${complaintId}/replies`);
+      return Array.isArray(response.data?.data) ? response.data.data : [];
+    } catch (error) {
+      console.error('Failed to fetch complaint replies:', error);
+      return [];
+    }
+  }
+
   // Lease and payment methods
   async getTenantLeases(tenantId: number | string): Promise<any[]> {
     try {
@@ -290,6 +313,37 @@ export class ApiClient {
       return Array.isArray(payments) ? payments : [];
     } catch (error) {
       console.error('Failed to fetch agent payments:', error);
+      return [];
+    }
+  }
+
+  // Agent dashboard methods
+  async getAgentStats(): Promise<any> {
+    try {
+      const response = await this.axiosInstance.get<any>('/agents/me/stats');
+      return response.data?.data || {
+        assignedProperties: 0,
+        managedTenants: 0,
+        activeLeases: 0,
+        openComplaints: 0,
+      };
+    } catch (error) {
+      console.error('Failed to fetch agent stats:', error);
+      return {
+        assignedProperties: 0,
+        managedTenants: 0,
+        activeLeases: 0,
+        openComplaints: 0,
+      };
+    }
+  }
+
+  async getAgentComplaints(limit: number = 5): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>(`/agents/me/complaints?limit=${limit}`);
+      return Array.isArray(response.data?.data) ? response.data.data : [];
+    } catch (error) {
+      console.error('Failed to fetch agent complaints:', error);
       return [];
     }
   }
