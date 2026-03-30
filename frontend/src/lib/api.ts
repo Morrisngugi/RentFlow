@@ -221,6 +221,19 @@ export class ApiClient {
     }
   }
 
+  async updateComplaintStatusAsAgent(
+    complaintId: string,
+    status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  ): Promise<any> {
+    try {
+      const response = await this.axiosInstance.patch(`/complaints/${complaintId}/update-status`, { status });
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to update complaint status:', error);
+      throw error;
+    }
+  }
+
   async getComplaintReplies(complaintId: string): Promise<any[]> {
     try {
       const response = await this.axiosInstance.get(`/complaints/${complaintId}/replies`);

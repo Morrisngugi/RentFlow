@@ -169,6 +169,10 @@ export default function NotificationBell({ userRole }: NotificationBellProps) {
         return '💰';
       case 'complaint_received':
         return '⚠️';
+      case 'complaint_reply':
+        return '💬';
+      case 'complaint_status_updated':
+        return '✏️';
       default:
         return '📬';
     }
@@ -313,6 +317,30 @@ export default function NotificationBell({ userRole }: NotificationBellProps) {
                               className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded font-medium transition-colors"
                             >
                               View Complaint
+                            </button>
+                            {!notification.isRead && (
+                              <button
+                                onClick={(e) => handleMarkAsRead(notification.id, e)}
+                                className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded font-medium transition-colors"
+                              >
+                                Mark Read
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {(notification.notificationType === 'complaint_reply' || notification.notificationType === 'complaint_status_updated') && (
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkAsRead(notification.id);
+                                router.push(`/dashboard/complaints?complaintId=${notification.relatedEntityId}`);
+                                setShowDropdown(false);
+                              }}
+                              className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded font-medium transition-colors"
+                            >
+                              {notification.notificationType === 'complaint_reply' ? 'View Reply' : 'View Update'}
                             </button>
                             {!notification.isRead && (
                               <button

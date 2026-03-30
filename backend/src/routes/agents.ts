@@ -142,9 +142,12 @@ router.get('/me/complaints', authenticate, checkUserActive, async (req: Authenti
     const limit = parseInt(req.query.limit as string) || 100;
     const offset = parseInt(req.query.offset as string) || 0;
     const { Complaint } = await import('../entities/complaint/Complaint');
+    const { Notification } = await import('../entities/notification/Notification');
     const { AppDataSource } = await import('../config/database');
+    const { notificationService } = await import('../services/NotificationService');
 
     const complaintRepo = AppDataSource.getRepository(Complaint);
+    const notificationRepo = AppDataSource.getRepository(Notification);
     const [complaints, total] = await complaintRepo
       .createQueryBuilder('complaint')
       .leftJoinAndSelect('complaint.lease', 'lease')
@@ -155,6 +158,33 @@ router.get('/me/complaints', authenticate, checkUserActive, async (req: Authenti
       .skip(offset)
       .take(limit)
       .getManyAndCount();
+
+    // Auto-create missing notifications for these complaints (for complaints created before notification system)
+    for (const complaint of complaints) {
+      const existingNotif = await notificationRepo.findOne({
+        where: {
+          userId: agentId,
+          relatedEntityId: complaint.id,
+          notificationType: 'complaint_received',
+        },
+      });
+
+      if (!existingNotif) {
+        try {
+          await notificationService.sendNotification({
+            userId: agentId,
+            title: 'Complaint on Your Property',
+            message: `Complaint: "${complaint.title}" from tenant`,
+            notificationType: 'complaint_received',
+            relatedEntityId: complaint.id,
+            relatedEntityType: 'complaint',
+          });
+          console.log(`✅ Auto-created missing notification for complaint: ${complaint.id}`);
+        } catch (notifErr: any) {
+          console.warn(`⚠️ Failed to auto-create notification for complaint ${complaint.id}:`, notifErr.message);
+        }
+      }
+    }
 
     return res.status(200).json({
       message: 'Agent complaints retrieved successfully',
@@ -388,6 +418,88 @@ router.delete('/:id', authenticate, checkUserActive, async (req: AuthenticatedRe
         status: statusCode,
         message: error.message,
         code: 'AGENT_DELETE_ERROR',
+      },
+    });
+  }
+});
+
+/**
+ * POST /api/v1/agents/me/sync-notifications
+ * Create notifications for existing complaints without notifications
+ */
+router.post('/me/sync-notifications', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'agent') {
+      return res.status(401).json({
+        error: {
+          status: 401,
+          message: 'Unauthorized',
+          code: 'UNAUTHORIZED',
+        },
+      });
+    }
+
+    const agentId = req.user.userId;
+    const { Complaint } = await import('../entities/complaint/Complaint');
+    const { Notification } = await import('../entities/notification/Notification');
+    const { AppDataSource } = await import('../config/database');
+    const { notificationService } = await import('../services/NotificationService');
+
+    const complaintRepo = AppDataSource.getRepository(Complaint);
+    const notificationRepo = AppDataSource.getRepository(Notification);
+
+    // Get all complaints for this agent's properties
+    const complaints = await complaintRepo
+      .createQueryBuilder('complaint')
+      .leftJoinAndSelect('complaint.lease', 'lease')
+      .leftJoinAndSelect('lease.property', 'property')
+      .where('property.agentId = :agentId', { agentId })
+      .getMany();
+
+    let notificationsCreated = 0;
+
+    // For each complaint, check if notification exists
+    for (const complaint of complaints) {
+      const existingNotif = await notificationRepo.findOne({
+        where: {
+          userId: agentId,
+          relatedEntityId: complaint.id,
+          notificationType: 'complaint_received',
+        },
+      });
+
+      if (!existingNotif) {
+        try {
+          await notificationService.sendNotification({
+            userId: agentId,
+            title: 'Complaint on Your Property',
+            message: `Complaint: "${complaint.title}" from tenant`,
+            notificationType: 'complaint_received',
+            relatedEntityId: complaint.id,
+            relatedEntityType: 'complaint',
+          });
+          notificationsCreated++;
+          console.log(`✅ Created notification for complaint: ${complaint.id}`);
+        } catch (notifErr: any) {
+          console.warn(`⚠️ Failed to create notification for complaint ${complaint.id}:`, notifErr.message);
+        }
+      }
+    }
+
+    return res.status(200).json({
+      message: 'Notification sync completed',
+      data: {
+        totalComplaints: complaints.length,
+        notificationsCreated,
+      },
+    });
+  } catch (error: any) {
+    console.error('❌ Error syncing notifications:', error);
+    return res.status(500).json({
+      error: {
+        status: 500,
+        message: error.message,
+        code: 'SYNC_NOTIFICATIONS_ERROR',
       },
     });
   }

@@ -309,6 +309,13 @@ router.post('/:complaintId/reply', authenticate, async (req: AuthenticatedReques
 
     const savedReply = await replyRepo.save(reply);
 
+    // Auto-update complaint status to "in_progress" if it's currently "open"
+    if (complaint.status === 'open') {
+      complaint.status = 'in_progress';
+      await complaintRepo.save(complaint);
+      console.log('✅ Complaint status auto-updated to in_progress');
+    }
+
     // Send notification to tenant
     try {
       const replierName = req.user.role === 'agent' ? 'Agent' : 'Landlord';
@@ -375,6 +382,108 @@ router.get('/:complaintId/replies', authenticate, async (req: AuthenticatedReque
     });
   } catch (error: any) {
     console.error('❌ Fetch replies error:', error.message);
+    return next(error);
+  }
+});
+
+/**
+ * PATCH /api/v1/complaints/:complaintId/update-status
+ * Update complaint status (by agent or landlord)
+ */
+router.patch('/:complaintId/update-status', authenticate, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    console.log('🎯 PATCH /complaints/:complaintId/update-status - Request received');
+    console.log('📥 Request body:', req.body);
+    console.log('📥 Complaint ID:', req.params.complaintId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    const { complaintId } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['open', 'in_progress', 'resolved', 'closed'];
+    if (!status || !validStatuses.includes(status)) {
+      throw new ValidationError('Valid status is required', { validStatuses, received: status });
+    }
+
+    const { Complaint } = await import('../entities/complaint/Complaint');
+    const { AppDataSource } = await import('../config/database');
+
+    const complaintRepo = AppDataSource.getRepository(Complaint);
+    const complaint = await complaintRepo.findOne({
+      where: { id: complaintId },
+      relations: ['lease', 'lease.property', 'tenant'],
+    });
+
+    if (!complaint) {
+      throw new ValidationError('Complaint not found', { complaintId });
+    }
+
+    // Check authorization - only landlord or agent of the property can update status
+    if (complaint.landlordId !== req.user.userId && complaint.lease?.property?.agentId !== req.user.userId) {
+      throw new AuthorizationError('You are not authorized to update this complaint');
+    }
+
+    const oldStatus = complaint.status;
+    complaint.status = status;
+    console.log(`🔄 Updating complaint ${complaintId}: ${oldStatus} → ${status}`);
+    console.log('Before save:', { id: complaint.id, status: complaint.status });
+    
+    const updatedComplaint = await complaintRepo.save(complaint);
+    console.log('After save:', { id: updatedComplaint.id, status: updatedComplaint.status });
+    
+    // Verify the save worked by fetching fresh from DB
+    const verifyComplaint = await complaintRepo.findOne({ where: { id: complaintId } });
+    console.log('Verify from DB:', { id: verifyComplaint?.id, status: verifyComplaint?.status });
+
+    // Send notification to tenant about status change
+    try {
+      const statusMessages: Record<string, string> = {
+        'in_progress': 'is being worked on',
+        'resolved': 'has been resolved',
+        'closed': 'has been closed',
+      };
+      
+      const message = statusMessages[status] || `status changed to ${status}`;
+      await notificationService.sendNotification({
+        userId: complaint.tenantId,
+        title: `Complaint Status Update: ${complaint.title}`,
+        message: `Your complaint ${message}.`,
+        notificationType: 'complaint_status_update',
+        relatedEntityId: complaintId,
+        relatedEntityType: 'complaint',
+      });
+      console.log(`✅ Status update notification sent to tenant (${oldStatus} → ${status})`);
+    } catch (notifError: any) {
+      console.warn('⚠️ Failed to send status update notification:', notifError.message);
+    }
+
+    console.log(`✅ Complaint status updated: ${oldStatus} → ${status}`);
+    return res.status(200).json({
+      success: true,
+      message: 'Complaint status updated successfully',
+      data: {
+        id: updatedComplaint.id,
+        title: updatedComplaint.title,
+        description: updatedComplaint.description,
+        type: updatedComplaint.complaintType,
+        status: updatedComplaint.status,
+        property: (complaint.lease?.property) ? { id: complaint.lease.property.id, name: complaint.lease.property.name } : null,
+        tenant: complaint.tenant ? { 
+          id: complaint.tenant.id, 
+          name: `${complaint.tenant.firstName} ${complaint.tenant.lastName}`,
+          email: complaint.tenant.email,
+          phone: complaint.tenant.phoneNumber
+        } : null,
+        lease: complaint.lease ? { id: complaint.lease.id } : null,
+        createdAt: updatedComplaint.createdAt,
+        updatedAt: updatedComplaint.updatedAt,
+      },
+    });
+  } catch (error: any) {
+    console.error('❌ Status update error:', error.message);
     return next(error);
   }
 });
