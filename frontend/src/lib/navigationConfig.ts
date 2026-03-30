@@ -19,7 +19,7 @@ export const roleMenuConfig: Record<UserRole, MenuItem[]> = {
 
   tenant: [
     { name: 'Dashboard', href: '/dashboard', icon: '📊', description: 'Overview' },
-    { name: 'Lease', href: '/dashboard/leases', icon: '📄', description: 'My lease details' },
+    { name: 'Invoices', href: '/dashboard/invoices', icon: '📋', description: 'My invoices' },
     { name: 'Payments', href: '/dashboard/payments', icon: '💰', description: 'My payments' },
     { name: 'Complaints', href: '/dashboard/complaints', icon: '⚠️', description: 'Maintenance requests' },
     { name: 'Profile', href: '/dashboard/profile', icon: '👤', description: 'My profile' },

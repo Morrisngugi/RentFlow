@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { apiClient } from '@/lib/api';
 import { Notification } from '@/lib/types';
 
@@ -9,6 +11,7 @@ interface NotificationBellProps {
 }
 
 export default function NotificationBell({ userRole }: NotificationBellProps) {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -167,10 +170,9 @@ export default function NotificationBell({ userRole }: NotificationBellProps) {
                 notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`px-5 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer group ${
+                    className={`px-5 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors group ${
                       !notification.isRead ? 'bg-blue-50/50' : ''
                     }`}
-                    onClick={() => handleMarkAsRead(notification.id)}
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0 text-lg mt-0.5">
@@ -196,28 +198,32 @@ export default function NotificationBell({ userRole }: NotificationBellProps) {
                             minute: '2-digit',
                           })}
                         </p>
+                        
+                        {/* Action Buttons */}
+                        {notification.notificationType === 'invoice_generated' && (
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkAsRead(notification.id);
+                                router.push('/dashboard/invoices');
+                                setShowDropdown(false);
+                              }}
+                              className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded font-medium transition-colors"
+                            >
+                              View Invoice
+                            </button>
+                            {!notification.isRead && (
+                              <button
+                                onClick={(e) => handleMarkAsRead(notification.id, e)}
+                                className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded font-medium transition-colors"
+                              >
+                                Mark Read
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      {!notification.isRead && (
-                        <button
-                          onClick={(e) => handleMarkAsRead(notification.id, e)}
-                          className="flex-shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-200 transition-all"
-                          title="Mark as read"
-                        >
-                          <svg
-                            className="w-4 h-4 text-gray-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        </button>
-                      )}
                     </div>
                   </div>
                 ))
