@@ -9,6 +9,11 @@ const axiosInstance: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  validateStatus: (status) => {
+    // Treat 404 as success instead of error to prevent console logging
+    // This prevents Axios from throwing for 404 responses
+    return status < 500;
+  },
 });
 
 // Add token to requests if available
@@ -223,10 +228,7 @@ export class ApiClient {
   async getMonthlyBreakdown(leaseId: string, month: number, year: number): Promise<any> {
     try {
       const response = await this.axiosInstance.get<any>(
-        `/leases/${leaseId}/monthly-breakdown?month=${month}&year=${year}`,
-        {
-          validateStatus: (status) => status === 200 || status === 404, // Don't throw on 404
-        }
+        `/leases/${leaseId}/monthly-breakdown?month=${month}&year=${year}`
       );
       // Return null for 404 (no data for this month) or return data for 200
       if (response.status === 404) {
@@ -234,11 +236,27 @@ export class ApiClient {
       }
       return response.data?.data || null;
     } catch (error: any) {
-      // Only log unexpected errors (not 404)
-      if (error.response?.status !== 404) {
-        console.error('Failed to fetch monthly breakdown:', error);
-      }
+      console.error('Failed to fetch monthly breakdown:', error);
       return null;
+    }
+  }
+
+  async getTenantInvoices(tenantId: string, limit: number = 20, offset: number = 0, fromDate?: string, toDate?: string): Promise<any> {
+    try {
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+      if (fromDate) params.append('fromDate', fromDate);
+      if (toDate) params.append('toDate', toDate);
+
+      const response = await this.axiosInstance.get<any>(
+        `/leases/invoices/by-tenant/${tenantId}?${params}`
+      );
+      return response.data?.data || { invoices: [], total: 0, limit, offset };
+    } catch (error) {
+      console.error('Failed to fetch tenant invoices:', error);
+      return { invoices: [], total: 0, limit, offset };
     }
   }
 
