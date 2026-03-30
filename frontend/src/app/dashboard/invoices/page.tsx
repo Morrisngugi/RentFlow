@@ -36,6 +36,11 @@ export default function InvoicesPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<MonthlyBreakdown | null>(null);
   const [leases, setLeases] = useState<Lease[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [limit] = useState(20);
+  const [fromMonth, setFromMonth] = useState<string>('');
+  const [toMonth, setToMonth] = useState<string>('');
 
   const apiClient = new ApiClient();
 
@@ -50,53 +55,26 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     if (user) {
-      fetchInvoices();
+      setOffset(0);
+      fetchInvoices(0);
     }
-  }, [user]);
+  }, [user, fromMonth, toMonth]);
 
-  const fetchInvoices = async () => {
+  const fetchInvoices = async (pageOffset: number = 0) => {
     try {
       if (!user?.id) return;
+      setLoading(true);
 
-      // Fetch leases
-      const leaseList = await apiClient.getTenantLeases(user.id);
-      if (leaseList && leaseList.length > 0) {
-        setLeases(leaseList);
-        const allInvoices: MonthlyBreakdown[] = [];
+      // Convert month inputs (YYYY-MM) to the format backend expects
+      const fromDate = fromMonth ? `${fromMonth}-01` : undefined;
+      const toDate = toMonth ? `${toMonth}-01` : undefined;
 
-        // Fetch invoices for the last 24 months
-        for (const lease of leaseList) {
-          const now = new Date();
-          for (let i = 0; i < 24; i++) {
-            const dateObj = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const month = dateObj.getMonth() + 1;
-            const year = dateObj.getFullYear();
-
-            try {
-              const breakdown = await apiClient.getMonthlyBreakdown(lease.id, month, year);
-              if (breakdown) {
-                allInvoices.push(breakdown);
-              }
-            } catch (err: any) {
-              // Silently skip months with no data (404 errors)
-              // Only log other types of errors
-              if (err.response?.status !== 404) {
-                console.error(`Error fetching breakdown for ${month}/${year}:`, err);
-              }
-            }
-          }
-        }
-
-        // Sort invoices by year and month (most recent first)
-        allInvoices.sort((a, b) => {
-          if (b.year !== a.year) {
-            return b.year - a.year;
-          }
-          return b.month - a.month;
-        });
-
-        setInvoices(allInvoices);
-      }
+      // Use new endpoint that only fetches available invoices
+      const result = await apiClient.getTenantInvoices(user.id, limit, pageOffset, fromDate, toDate);
+      
+      setInvoices(result.invoices || []);
+      setTotal(result.total || 0);
+      setOffset(pageOffset);
     } catch (err) {
       console.error('Error fetching invoices:', err);
       setError('Failed to load invoices');
@@ -166,6 +144,43 @@ export default function InvoicesPage() {
         <p className="text-gray-600 text-lg">View your monthly rental invoices and payment status</p>
       </div>
 
+      {/* Date Filter */}
+      <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Filter by Date</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">From Month</label>
+            <input
+              type="month"
+              value={fromMonth}
+              onChange={(e) => setFromMonth(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">To Month</label>
+            <input
+              type="month"
+              value={toMonth}
+              onChange={(e) => setToMonth(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            onClick={() => {
+              setFromMonth('');
+              setToMonth('');
+            }}
+            className="bg-gray-300 hover:bg-gray-400 text-gray-900 px-6 py-2 rounded-lg font-medium transition-colors"
+          >
+            Clear Filters
+          </button>
+        </div>
+        <p className="text-gray-600 text-sm mt-3">
+          Showing {invoices.length} of {total} invoices
+        </p>
+      </div>
+
       {/* Error Message */}
       {error && (
         <div className="bg-red-50 border-l-4 border-red-600 p-4 mb-6 rounded">
@@ -233,6 +248,31 @@ export default function InvoicesPage() {
           ))
         )}
       </div>
+
+      {/* Pagination */}
+      {total > limit && (
+        <div className="flex items-center justify-between mt-8 bg-white rounded-lg shadow p-6">
+          <div className="text-gray-600">
+            Showing {offset + 1} to {Math.min(offset + limit, total)} of {total} invoices
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => fetchInvoices(Math.max(0, offset - limit))}
+              disabled={offset === 0}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg font-medium transition-colors"
+            >
+              ← Previous
+            </button>
+            <button
+              onClick={() => fetchInvoices(offset + limit)}
+              disabled={offset + limit >= total}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg font-medium transition-colors"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Invoice Details Modal */}
       {selectedInvoice && (

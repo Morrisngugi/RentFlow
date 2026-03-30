@@ -808,4 +808,117 @@ router.patch('/:breakdownId/update-charges', authenticate, async (req: Authentic
   }
 });
 
+/**
+ * GET /api/v1/leases/invoices/by-tenant/:tenantId
+ * Get all available invoices for a tenant (supports pagination and date filtering)
+ */
+router.get('/invoices/by-tenant/:tenantId', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('📋 Fetching invoices for tenant:', req.params.tenantId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    const { tenantId } = req.params;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const fromDate = req.query.fromDate as string; // Optional: YYYY-MM-DD
+    const toDate = req.query.toDate as string;     // Optional: YYYY-MM-DD
+
+    try {
+      // First, get all leases for this tenant
+      const leaseRepo = AppDataSource.getRepository(Lease);
+      const leases = await leaseRepo.find({
+        where: { tenantId, status: 'active' }
+      });
+
+      if (!leases || leases.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: 'No leases found for tenant',
+          data: {
+            invoices: [],
+            total: 0,
+            limit,
+            offset,
+          },
+        });
+      }
+
+      const leaseIds = leases.map(l => l.id);
+
+      // Build query for invoices
+      const breakdownRepo = AppDataSource.getRepository(MonthlyRentBreakdown);
+      let query = breakdownRepo.createQueryBuilder('breakdown')
+        .where('breakdown.leaseId IN (:...leaseIds)', { leaseIds })
+        .orderBy('breakdown.year', 'DESC')
+        .addOrderBy('breakdown.month', 'DESC');
+
+      // Apply date filters if provided
+      if (fromDate) {
+        const [year, month] = fromDate.split('-').map(Number);
+        query = query.andWhere('(breakdown.year > :fromYear OR (breakdown.year = :fromYear AND breakdown.month >= :fromMonth))', 
+          { fromYear: year, fromMonth: month });
+      }
+      if (toDate) {
+        const [year, month] = toDate.split('-').map(Number);
+        query = query.andWhere('(breakdown.year < :toYear OR (breakdown.year = :toYear AND breakdown.month <= :toMonth))', 
+          { toYear: year, toMonth: month });
+      }
+
+      // Get total count
+      const total = await query.getCount();
+
+      // Get paginated results
+      const breakdowns = await query
+        .skip(offset)
+        .take(limit)
+        .getMany();
+
+      console.log(`✅ Found ${breakdowns.length} invoices out of ${total} total`);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Invoices retrieved successfully',
+        data: {
+          invoices: breakdowns.map(b => ({
+            id: b.id,
+            leaseId: b.leaseId,
+            month: b.month,
+            year: b.year,
+            baseRent: b.baseRent,
+            waterCharges: b.waterCharges,
+            garbageCharges: b.garbageCharges,
+            securityFee: b.securityFee,
+            penaltyCharges: b.penaltyCharges || 0,
+            electricityReconnectionFee: b.electricityReconnectionFee || 0,
+            waterReconnectionFee: b.waterReconnectionFee || 0,
+            otherCharges: b.otherCharges || 0,
+            additionalChargesDescription: b.additionalChargesDescription || '',
+            totalDue: b.totalDue,
+            amountPaid: b.amountPaid,
+            balanceRemaining: Math.max(0, b.totalDue - b.amountPaid),
+            overpayment: Math.max(0, b.overpayment),
+            status: b.status,
+            dueDate: b.dueDate,
+            createdAt: b.createdAt,
+            updatedAt: b.updatedAt,
+          })),
+          total,
+          limit,
+          offset,
+          hasMore: offset + limit < total,
+        },
+      });
+    } catch (err: any) {
+      console.error('❌ Error fetching invoices:', err.message);
+      throw new DatabaseError(err.message, 'fetch_invoices_by_tenant');
+    }
+  } catch (error: any) {
+    console.error('❌ Fetch invoices error:', error.message);
+    throw error;
+  }
+});
+
 export default router;
