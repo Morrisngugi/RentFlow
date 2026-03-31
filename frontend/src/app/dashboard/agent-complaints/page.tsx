@@ -494,19 +494,27 @@ export default function AgentComplaintsPage() {
                     <p className="text-sm text-gray-500 text-center py-4">No replies yet</p>
                   ) : (
                     <div className="space-y-3 max-h-64 overflow-y-auto">
-                      {replies.map((reply) => (
-                        <div key={reply.id} className="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-semibold text-gray-900">
-                              {reply.user?.name || 'Agent'}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {new Date(reply.createdAt).toLocaleDateString()}
-                            </span>
+                      {replies.map((reply) => {
+                        const roleDisplay = reply.userRole ? reply.userRole.charAt(0).toUpperCase() + reply.userRole.slice(1) : 'Landlord';
+                        return (
+                          <div key={reply.id} className="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-gray-900">
+                                  {reply.userName || 'Unknown User'}
+                                </span>
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                                  {roleDisplay}
+                                </span>
+                              </div>
+                              <span className="text-xs text-gray-500">
+                                {new Date(reply.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700">{reply.message}</p>
                           </div>
-                          <p className="text-sm text-gray-700">{reply.message}</p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
