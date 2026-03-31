@@ -92,10 +92,21 @@ export default function LandlordDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch properties and leases
+      if (!user) return;
+
+      // Get current month and year
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1; // JavaScript month is 0-11, convert to 1-12
+      const currentYear = now.getFullYear();
+
+      // Fetch all properties 
       const propertiesData = await apiClient.getProperties();
+      const properties = Array.isArray(propertiesData) ? propertiesData : [];
       
-      // Process properties data into dashboard format
+      // Fetch payments data to check for pending payments
+      const paymentsData = await apiClient.getLandlordPayments();
+      const payments = Array.isArray(paymentsData) ? paymentsData : [];
+
       const processedProperties: Property[] = [];
       let totalActiveLeases = 0;
       let totalExpectedRent = 0;
@@ -106,138 +117,195 @@ export default function LandlordDashboard() {
       const timelineEvents = new Map();
       const dashboardAlerts: Alert[] = [];
 
-      // Mock data processing - adjust based on your API response format
-      if (Array.isArray(propertiesData)) {
-        propertiesData.forEach((property: any) => {
-          // Calculate property metrics
-          const unitCount = property.totalUnits || 5; // Mock
-          const occupiedUnits = Math.ceil(unitCount * 0.8); // Mock: 80% occupancy
-          const baseRent = (property.monthlyRent || 12000) * occupiedUnits;
-          const securityFees = 2000 * occupiedUnits; // Mock
-          const estimatedUtilities = 1000 * occupiedUnits; // Mock
-          const expectedMonthlyRent = baseRent + securityFees + estimatedUtilities;
+      // Process each property
+      for (const property of properties) {
+        // Fetch leases for this property
+        const leases = await apiClient.getPropertyLeases(property.id);
+        const leaseList = Array.isArray(leases) ? leases : [];
 
-          // Mock tenants data
-          const tenants = Array.from({ length: occupiedUnits }, (_, i) => {
-            const statuses: ('paid' | 'pending' | 'overdue' | 'partial')[] = ['overdue', 'pending', 'partial', 'paid'];
-            return {
-              id: `tenant-${i}`,
-              name: `Tenant ${i + 1}`,
-              unit: `Unit ${i + 1}`,
-              rent: property.monthlyRent || 12000,
-              paymentStatus: statuses[i % 4],
-            };
-          });
+        // Calculate unit count and occupancy - use property's actual totalUnits from backend
+        const unitCount = property.totalUnits || leaseList.length || 1;
+        const occupiedUnits = leaseList.filter((lease: any) => lease.status === 'active').length;
 
-          // Mock lease expirations
-          const upcomingLeaseExpirations = tenants
-            .slice(0, 3)
-            .map((tenant, i) => {
-              const expiryDate = new Date();
-              expiryDate.setMonth(expiryDate.getMonth() + (i + 1));
-              const daysUntilExpiry = Math.ceil(
-                (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-              );
-              return {
-                tenantId: tenant.id,
-                tenantName: tenant.name,
-                unit: tenant.unit,
-                endDate: expiryDate.toISOString(),
-                daysUntilExpiry,
-              };
-            });
+        // Build tenants from leases with actual invoice data
+        const tenants = await Promise.all(leaseList.map(async (lease: any) => {
+          // Fetch current month's invoice for this lease
+          const monthlyBreakdown = await apiClient.getLeaseMonthlyBreakdown(
+            lease.id,
+            currentMonth,
+            currentYear
+          );
 
-          processedProperties.push({
-            id: property.id,
-            name: property.name,
-            address: property.address,
-            city: property.city,
-            unitCount,
-            occupiedUnits,
-            expectedMonthlyRent,
-            baseRent,
-            securityFees,
-            estimatedUtilities,
-            tenants,
-            upcomingLeaseExpirations,
-          });
+          // Use status from monthly breakdown for accurate payment status
+          let paymentStatus: 'paid' | 'pending' | 'overdue' | 'partial' = 'paid';
+          
+          if (monthlyBreakdown) {
+            // Determine status based on payment state and due date
+            const amountPaid = parseFloat(String(monthlyBreakdown.amountPaid || 0));
+            const totalDue = parseFloat(String(monthlyBreakdown.totalDue || 0));
+            const dueDate = monthlyBreakdown.dueDate || new Date().toISOString();
+            const isOverdue = new Date(dueDate) < new Date() && amountPaid < totalDue;
 
-          totalActiveLeases += occupiedUnits;
-          totalExpectedRent += expectedMonthlyRent;
-          totalOccupiedUnits += occupiedUnits;
-          totalUnits += unitCount;
-          totalPendingPayments += Math.floor(Math.random() * 3); // Mock
-
-          // Generate lease timeline events
-          upcomingLeaseExpirations.forEach((lease) => {
-            const date = new Date(lease.endDate);
-            const monthKey = `${date.getMonth()}-${date.getFullYear()}`;
-            if (!timelineEvents.has(monthKey)) {
-              timelineEvents.set(monthKey, {
-                month: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()],
-                year: date.getFullYear(),
-                leaseCount: 0,
-                leases: [],
-              });
+            if (amountPaid >= totalDue) {
+              paymentStatus = 'paid';
+            } else if (isOverdue) {
+              // If due date has passed and not fully paid, it's overdue
+              paymentStatus = 'overdue';
+            } else if (amountPaid > 0 && amountPaid < totalDue) {
+              // If partial payment received and not overdue, it's partial
+              paymentStatus = 'partial';
+            } else {
+              // No payment received and not overdue yet
+              paymentStatus = 'pending';
             }
-            const event = timelineEvents.get(monthKey);
-            event.leaseCount++;
-            event.leases.push({
-              propertyName: property.name,
-              unitName: lease.unit,
-              tenantName: lease.tenantName,
-            });
-          });
-
-          // Generate alerts
-          if (totalPendingPayments > 0) {
-            dashboardAlerts.push({
-              id: `alert-payment-${property.id}`,
-              type: 'payment_pending',
-              title: `Payment Pending - ${property.name}`,
-              description: `One or more payments are pending collection`,
-              severity: 'warning',
-              createdAt: new Date().toISOString(),
-              actionUrl: `/dashboard/payments?property=${property.id}`,
-            });
+          } else {
+            // Fallback: check payment records if no breakdown exists
+            const leasePayments = payments.filter((p: any) => p.leaseId === lease.id);
+            if (leasePayments.length > 0) {
+              const hasOverdue = leasePayments.some((p: any) => p.status?.toLowerCase() === 'overdue');
+              const hasPending = leasePayments.some((p: any) => p.status?.toLowerCase() === 'pending');
+              const hasPartial = leasePayments.some((p: any) => p.status?.toLowerCase() === 'partial');
+              
+              if (hasOverdue) paymentStatus = 'overdue';
+              else if (hasPending) paymentStatus = 'pending';
+              else if (hasPartial) paymentStatus = 'partial';
+              else paymentStatus = 'paid';
+            }
           }
 
-          upcomingLeaseExpirations.forEach((lease) => {
-            if (lease.daysUntilExpiry < 30 && lease.daysUntilExpiry > 0) {
-              dashboardAlerts.push({
-                id: `alert-lease-${lease.tenantId}`,
-                type: 'lease_expiring',
-                title: `Lease Expiring Soon - ${property.name}`,
-                description: `${lease.tenantName} (${lease.unit}) lease expires in ${lease.daysUntilExpiry} days`,
-                severity: 'warning',
-                createdAt: new Date().toISOString(),
-                actionUrl: `/dashboard/leases?property=${property.id}`,
-              });
-            } else if (lease.daysUntilExpiry <= 0) {
-              dashboardAlerts.push({
-                id: `alert-lease-expired-${lease.tenantId}`,
-                type: 'lease_expiring',
-                title: `Lease Expired - ${property.name}`,
-                description: `${lease.tenantName} (${lease.unit}) lease expired ${Math.abs(lease.daysUntilExpiry)} days ago`,
-                severity: 'critical',
-                createdAt: new Date().toISOString(),
-                actionUrl: `/dashboard/leases?property=${property.id}`,
-              });
-            }
-          });
+          // Use totalDue from invoice if available, convert to number explicitly
+          const rentAmount = monthlyBreakdown?.totalDue 
+            ? parseFloat(String(monthlyBreakdown.totalDue))
+            : (lease.monthlyRent ? parseFloat(String(lease.monthlyRent)) : 0);
 
-          if (occupiedUnits < unitCount) {
+          return {
+            id: lease.tenantId,
+            name: lease.tenant?.firstName?.concat(' ', lease.tenant?.lastName || '') || 'Unknown Tenant',
+            unit: lease.unitName || `Unit ${lease.id.substring(0, 8)}`,
+            rent: rentAmount,
+            paymentStatus,
+          };
+        }));
+
+        // Calculate expected monthly rent from actual invoices (sum all tenant amounts)
+        const totalDueAmount = tenants.reduce((sum, t) => {
+          const tenantRent = typeof t.rent === 'string' ? parseFloat(t.rent) : (t.rent || 0);
+          return sum + tenantRent;
+        }, 0);
+
+        // Build lease expiration list
+        const upcomingLeaseExpirations = leaseList
+          .filter((lease: any) => lease.status === 'active')
+          .map((lease: any) => {
+            const endDate = new Date(lease.endDate);
+            const daysUntilExpiry = Math.ceil(
+              (endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+            );
+            return {
+              tenantId: lease.tenantId,
+              tenantName: lease.tenant?.firstName?.concat(' ', lease.tenant?.lastName || '') || 'Unknown',
+              unit: lease.unitName || `Unit ${lease.id.substring(0, 8)}`,
+              endDate: lease.endDate,
+              daysUntilExpiry,
+            };
+          })
+          .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
+
+        processedProperties.push({
+          id: property.id,
+          name: property.name,
+          address: property.address,
+          city: property.city,
+          unitCount,
+          occupiedUnits,
+          expectedMonthlyRent: totalDueAmount,
+          baseRent: totalDueAmount,
+          securityFees: 0,
+          estimatedUtilities: 0,
+          tenants,
+          upcomingLeaseExpirations,
+        });
+
+        totalActiveLeases += occupiedUnits;
+        totalExpectedRent += parseFloat(String(totalDueAmount)) || 0;
+        totalOccupiedUnits += occupiedUnits;
+        totalUnits += unitCount;
+
+        // Count pending payments based on actual lease payment statuses
+        const propertyPendingPayments = tenants.filter(
+          (tenant: any) => tenant.paymentStatus === 'pending' || tenant.paymentStatus === 'partial' || tenant.paymentStatus === 'overdue'
+        ).length;
+        totalPendingPayments += propertyPendingPayments;
+
+        // Generate timeline events
+        upcomingLeaseExpirations.forEach((lease) => {
+          const date = new Date(lease.endDate);
+          const monthKey = `${date.getMonth()}-${date.getFullYear()}`;
+          if (!timelineEvents.has(monthKey)) {
+            timelineEvents.set(monthKey, {
+              month: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()],
+              year: date.getFullYear(),
+              leaseCount: 0,
+              leases: [],
+            });
+          }
+          const event = timelineEvents.get(monthKey);
+          event.leaseCount++;
+          event.leases.push({
+            propertyName: property.name,
+            unitName: lease.unit,
+            tenantName: lease.tenantName,
+          });
+        });
+
+        // Generate alerts
+        if (propertyPendingPayments > 0) {
+          dashboardAlerts.push({
+            id: `alert-payment-${property.id}`,
+            type: 'payment_pending',
+            title: `Payment Pending - ${property.name}`,
+            description: `${propertyPendingPayments} payment${propertyPendingPayments > 1 ? 's' : ''} pending collection`,
+            severity: 'warning',
+            createdAt: new Date().toISOString(),
+            actionUrl: `/dashboard/payments?property=${property.id}`,
+          });
+        }
+
+        upcomingLeaseExpirations.forEach((lease) => {
+          if (lease.daysUntilExpiry < 30 && lease.daysUntilExpiry > 0) {
             dashboardAlerts.push({
-              id: `alert-vacancy-${property.id}`,
-              type: 'property_vacancy',
-              title: `Vacancy - ${property.name}`,
-              description: `${unitCount - occupiedUnits} unit${unitCount - occupiedUnits > 1 ? 's' : ''} available`,
-              severity: 'info',
+              id: `alert-lease-${lease.tenantId}`,
+              type: 'lease_expiring',
+              title: `Lease Expiring Soon - ${property.name}`,
+              description: `${lease.tenantName} (${lease.unit}) lease expires in ${lease.daysUntilExpiry} days`,
+              severity: 'warning',
               createdAt: new Date().toISOString(),
-              actionUrl: `/dashboard/properties/${property.id}`,
+              actionUrl: `/dashboard/leases?property=${property.id}`,
+            });
+          } else if (lease.daysUntilExpiry <= 0) {
+            dashboardAlerts.push({
+              id: `alert-lease-expired-${lease.tenantId}`,
+              type: 'lease_expiring',
+              title: `Lease Expired - ${property.name}`,
+              description: `${lease.tenantName} (${lease.unit}) lease expired ${Math.abs(lease.daysUntilExpiry)} days ago`,
+              severity: 'critical',
+              createdAt: new Date().toISOString(),
+              actionUrl: `/dashboard/leases?property=${property.id}`,
             });
           }
         });
+
+        if (occupiedUnits < unitCount) {
+          dashboardAlerts.push({
+            id: `alert-vacancy-${property.id}`,
+            type: 'property_vacancy',
+            title: `Vacancy - ${property.name}`,
+            description: `${unitCount - occupiedUnits} unit${unitCount - occupiedUnits > 1 ? 's' : ''} available`,
+            severity: 'info',
+            createdAt: new Date().toISOString(),
+            actionUrl: `/dashboard/properties/${property.id}`,
+          });
+        }
       }
 
       setProperties(processedProperties);
@@ -249,7 +317,7 @@ export default function LandlordDashboard() {
         occupancyRate: totalUnits > 0 ? Math.round((totalOccupiedUnits / totalUnits) * 100) : 0,
       });
       setLeaseTimeline(Array.from(timelineEvents.values()));
-      setAlerts(dashboardAlerts.slice(0, 10)); // Show top 10 alerts
+      setAlerts(dashboardAlerts.slice(0, 10));
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {

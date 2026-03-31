@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { In } from 'typeorm';
+import { In, Or } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { authenticate, AuthenticatedRequest, checkUserActive } from '../middleware/auth';
@@ -11,6 +11,7 @@ import { PropertyUnit } from '../entities/property/PropertyUnit';
 import { PropertyRoomTypePricing } from '../entities/property/PropertyRoomTypePricing';
 import { User } from '../entities/User';
 import { LandlordProfile } from '../entities/profile/LandlordProfile';
+import { Lease } from '../entities/lease/Lease';
 import { generateFloorName } from '../utils/floorUtils';
 import bcrypt from 'bcrypt';
 import {
@@ -230,7 +231,7 @@ router.post('/', authenticate, checkUserActive, async (req: AuthenticatedRequest
  */
 router.get('/', authenticate, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    console.log('📋 Listing properties for agent:', req.user?.userId);
+    console.log('📋 Listing properties for user:', req.user?.userId, 'role:', req.user?.role);
     
     if (!req.user) {
       throw new AuthenticationError('No user context found');
@@ -238,11 +239,26 @@ router.get('/', authenticate, async (req: AuthenticatedRequest, res: Response) =
 
     try {
       const propertyRepo = AppDataSource.getRepository(Property);
-      const properties = await propertyRepo.find({
-        where: { agentId: req.user.userId },
-        relations: ['landlord', 'floors', 'floors.units'],
-        order: { createdAt: 'DESC' },
-      });
+      let properties;
+      
+      // If user is a landlord, show properties they own
+      // If user is an agent, show properties they manage
+      if (req.user.role === 'landlord') {
+        properties = await propertyRepo.find({
+          where: { landlordId: req.user.userId },
+          relations: ['landlord', 'floors', 'floors.units'],
+          order: { createdAt: 'DESC' },
+        });
+        console.log(`📊 Landlord mode: Retrieved ${properties.length} properties owned`);
+      } else {
+        // Agent or admin mode - show by agentId
+        properties = await propertyRepo.find({
+          where: { agentId: req.user.userId },
+          relations: ['landlord', 'floors', 'floors.units'],
+          order: { createdAt: 'DESC' },
+        });
+        console.log(`📊 Agent mode: Retrieved ${properties.length} properties managed`);
+      }
 
       console.log(`✅ Retrieved ${properties.length} properties`);
       return res.status(200).json({
@@ -289,18 +305,25 @@ router.get('/:id', authenticate, async (req: AuthenticatedRequest, res: Response
 
     try {
       const propertyRepo = AppDataSource.getRepository(Property);
-      const property = await propertyRepo
+      
+      // Build query based on user role
+      let query = propertyRepo
         .createQueryBuilder('p')
         .leftJoinAndSelect('p.landlord', 'landlord')
         .leftJoinAndSelect('p.floors', 'floors')
         .leftJoinAndSelect('floors.units', 'units')
         .leftJoinAndSelect('units.tenant', 'tenant')
         .leftJoinAndSelect('p.roomTypePricing', 'pricing')
-        .where('p.id = :id AND p.agentId = :agentId', {
-          id: req.params.id,
-          agentId: req.user.userId,
-        })
-        .getOne();
+        .where('p.id = :id', { id: req.params.id });
+      
+      // Filter by user role
+      if (req.user.role === 'landlord') {
+        query = query.andWhere('p.landlordId = :userId', { userId: req.user.userId });
+      } else {
+        query = query.andWhere('p.agentId = :userId', { userId: req.user.userId });
+      }
+      
+      const property = await query.getOne();
 
       if (!property) {
         throw new NotFoundError('Property', { propertyId: req.params.id });
@@ -748,6 +771,94 @@ router.put('/:propertyId/units/:unitId', authenticate, async (req: Authenticated
     }
   } catch (error: any) {
     console.error('❌ Update unit error:', error.message);
+    throw error;
+  }
+});
+
+/**
+ * GET /api/v1/properties/:propertyId/leases
+ * Get all leases for a property
+ */
+router.get('/:propertyId/leases', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    console.log('📋 Fetching leases for property:', req.params.propertyId);
+    
+    if (!req.user) {
+      throw new AuthenticationError('No user context found');
+    }
+
+    try {
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const leaseRepo = AppDataSource.getRepository(Lease);
+      const unitRepo = AppDataSource.getRepository(PropertyUnit);
+
+      // Verify property exists and user has access
+      let propertyWhereClause: any = { id: req.params.propertyId };
+      
+      if (req.user.role === 'landlord') {
+        propertyWhereClause.landlordId = req.user.userId;
+      } else {
+        propertyWhereClause.agentId = req.user.userId;
+      }
+
+      const property = await propertyRepo.findOne({
+        where: propertyWhereClause,
+      });
+
+      if (!property) {
+        throw new NotFoundError('Property', { propertyId: req.params.propertyId });
+      }
+
+      // Get leases with tenant data
+      const leases = await leaseRepo.find({
+        where: { propertyId: req.params.propertyId },
+        relations: ['tenant'],
+        order: { createdAt: 'DESC' },
+      });
+
+      // Get all units for this property to match with tenants
+      const units = await unitRepo
+        .createQueryBuilder('u')
+        .leftJoin('u.floor', 'f')
+        .where('f.propertyId = :propertyId', { propertyId: req.params.propertyId })
+        .getMany();
+
+      console.log(`✅ Retrieved ${leases.length} leases for property`);
+      return res.status(200).json({
+        success: true,
+        message: 'Leases retrieved successfully',
+        count: leases.length,
+        data: leases.map((lease: any) => {
+          // Find the unit for this tenant
+          const unit = units.find((u) => u.currentTenantId === lease.tenantId);
+          const unitName = unit?.unitName || `Unit ${unit?.unitNumber || lease.id.substring(0, 8)}`;
+
+          return {
+            id: lease.id,
+            tenantId: lease.tenantId,
+            propertyId: lease.propertyId,
+            monthlyRent: lease.monthlyRent,
+            status: lease.status,
+            startDate: lease.startDate,
+            endDate: lease.endDate,
+            securityFee: lease.securityFee,
+            garbageAmount: lease.garbageAmount,
+            unitId: unit?.id,
+            unitName,
+            tenant: lease.tenant ? {
+              firstName: lease.tenant.firstName,
+              lastName: lease.tenant.lastName,
+              email: lease.tenant.email,
+            } : null,
+          };
+        }),
+      });
+    } catch (err: any) {
+      console.error('❌ Error querying leases:', err.message);
+      throw new DatabaseError(err.message, 'list_property_leases');
+    }
+  } catch (error: any) {
+    console.error('❌ Error fetching property leases:', error.message);
     throw error;
   }
 });
