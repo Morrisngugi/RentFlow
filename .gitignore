@@ -26,6 +26,10 @@ firebase-key.json
 google-credentials.json
 aws-credentials
 
+# Test files with secrets
+test-hash.js
+backend/test-hash.js
+
 # ============================================
 # Build & Dist
 # ============================================
