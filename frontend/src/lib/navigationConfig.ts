@@ -13,6 +13,7 @@ export const roleMenuConfig: Record<UserRole, MenuItem[]> = {
     { name: 'Tenants', href: '/dashboard/tenants', icon: '👥', description: 'My tenants' },
     { name: 'Leases', href: '/dashboard/leases', icon: '📄', description: 'Active leases' },
     { name: 'Payments', href: '/dashboard/payments', icon: '💰', description: 'Rental payments' },
+    { name: 'Complaints', href: '/dashboard/landlord-complaints', icon: '⚠️', description: 'Complaint management' },
     { name: 'Reports', href: '/dashboard/reports', icon: '📈', description: 'My reports' },
     { name: 'Profile', href: '/dashboard/profile', icon: '👤', description: 'My profile' },
   ],

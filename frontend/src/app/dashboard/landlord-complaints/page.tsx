@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { apiClient } from '@/lib/api';
+import { ApiClient } from '@/lib/api';
 
 interface ComplaintData {
   id: string;
@@ -25,7 +25,7 @@ interface PaginationData {
   hasMore: boolean;
 }
 
-export default function AgentComplaintsPage() {
+export default function LandlordComplaintsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const complaintIdFromUrl = searchParams?.get('complaintId') || null;
@@ -48,23 +48,18 @@ export default function AgentComplaintsPage() {
   const [showStatusConfirmation, setShowStatusConfirmation] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState<string | null>(null);
 
+  const apiClient = new ApiClient();
+
   useEffect(() => {
     const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
     if (userStr) {
       const userData = JSON.parse(userStr);
       setUser(userData);
-      
-      // Redirect landlords to landlord-specific complaints page
-      if (userData.role === 'landlord') {
-        // Extract complaintId from URL if present to maintain context
-        const complaintId = searchParams?.get('complaintId');
-        const redirectUrl = complaintId 
-          ? `/dashboard/landlord-complaints?complaintId=${complaintId}`
-          : '/dashboard/landlord-complaints';
-        router.replace(redirectUrl);
+      if (userData.role !== 'landlord') {
+        router.replace('/dashboard');
       }
     }
-  }, [router, searchParams]);
+  }, [router]);
 
   useEffect(() => {
     if (user) {
@@ -85,18 +80,10 @@ export default function AgentComplaintsPage() {
   const fetchComplaints = async () => {
     setLoading(true);
     try {
-      let response;
-      
-      // Fetch based on user role
-      if (user.role === 'landlord') {
-        response = await apiClient.getLandlordComplaints(pagination.limit, pagination.offset);
-      } else {
-        response = await apiClient.getAgentComplaints(pagination.limit, pagination.offset);
-      }
-      
+      const response = await apiClient.getLandlordComplaints(pagination.limit, pagination.offset);
       let fetchedComplaints = response.complaints || [];
 
-      // Map lease.property to property field for easier access
+      // Map lease.property and tenant details for easier access
       fetchedComplaints = fetchedComplaints.map((complaint: any) => {
         const tenant = complaint.tenant;
         const tenantName = tenant ? `${tenant.firstName || ''} ${tenant.lastName || ''}`.trim() : null;
@@ -237,7 +224,7 @@ export default function AgentComplaintsPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Complaints Management</h1>
-          <p className="text-gray-600">View and manage complaints for your assigned properties</p>
+          <p className="text-gray-600">View and manage complaints from your properties</p>
         </div>
 
         {/* Stats and Filters */}
@@ -388,7 +375,7 @@ export default function AgentComplaintsPage() {
           <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4">
             <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
               {/* Modal Header */}
-              <div className="sticky top-0 px-6 py-4 bg-gradient-to-r from-red-50 to-red-100 border-b border-gray-200 flex items-center justify-between">
+              <div className="sticky top-0 px-6 py-4 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-gray-200 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">Complaint Details</h2>
                   <p className="text-sm text-gray-600 mt-1">
@@ -498,7 +485,7 @@ export default function AgentComplaintsPage() {
                         <div key={reply.id} className="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-semibold text-gray-900">
-                              {reply.user?.name || 'Agent'}
+                              {reply.user?.name || 'Landlord'}
                             </span>
                             <span className="text-xs text-gray-500">
                               {new Date(reply.createdAt).toLocaleDateString()}

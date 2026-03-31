@@ -370,6 +370,32 @@ export class ApiClient {
     }
   }
 
+  async getLandlordComplaints(limit: number = 100, offset: number = 0): Promise<any> {
+    try {
+      const response = await this.axiosInstance.get<any>(`/complaints/my-complaints`);
+      const complaints = Array.isArray(response.data?.data?.complaints) ? response.data.data.complaints : [];
+      
+      // Handle pagination on frontend since backend returns all complaints
+      const paginatedComplaints = complaints.slice(offset, offset + limit);
+      
+      return {
+        complaints: paginatedComplaints,
+        pagination: { 
+          total: complaints.length, 
+          limit, 
+          offset, 
+          hasMore: offset + limit < complaints.length 
+        },
+      };
+    } catch (error) {
+      console.error('Failed to fetch landlord complaints:', error);
+      return {
+        complaints: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+      };
+    }
+  }
+
   // Landlord and property methods
   async getProperties(): Promise<any[]> {
     try {
