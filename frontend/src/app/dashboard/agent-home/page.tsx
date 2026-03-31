@@ -235,11 +235,6 @@ export default function AgentDashboard() {
                 <span>⚠️</span> View All Complaints
               </button>
             </Link>
-            <Link href="/dashboard/leases">
-              <button className="w-full px-4 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white font-semibold rounded-lg hover:shadow-lg transition-all text-left flex items-center gap-2">
-                <span>📄</span> View Leases
-              </button>
-            </Link>
             <Link href="/dashboard/profile">
               <button className="w-full px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-semibold rounded-lg hover:shadow-lg transition-all text-left flex items-center gap-2">
                 <span>👤</span> My Profile
