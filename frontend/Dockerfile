@@ -1,4 +1,5 @@
 # ============= BUILD STAGE =============
+# Force rebuild - clear cache
 FROM cgr.dev/chainguard/node:latest-dev AS builder
 
 WORKDIR /app
