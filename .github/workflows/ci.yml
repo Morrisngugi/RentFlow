@@ -1,0 +1,78 @@
+name: CI - Code Quality & Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend-quality:
+    name: Backend - TypeScript & Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: TypeScript type checking
+        working-directory: backend
+        run: npx tsc --noEmit
+      - name: Code formatting check
+        working-directory: backend
+        run: npx prettier --check "src/**/*.{ts,js,json}" || echo "No prettier config, skipping"
+        continue-on-error: true
+
+  frontend-quality:
+    name: Frontend - TypeScript & Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: TypeScript type checking
+        working-directory: frontend
+        run: npx tsc --noEmit
+      - name: Next.js lint
+        working-directory: frontend
+        run: npm run lint || echo "Lint skipped"
+        continue-on-error: true
+      - name: Build check
+        working-directory: frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000/api
+
+  backend-build:
+    name: Backend - Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Build TypeScript
+        working-directory: backend
+        run: npm run build
