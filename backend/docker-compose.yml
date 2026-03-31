@@ -4,6 +4,8 @@ services:
   postgres:
     image: postgres:15-alpine3.23
     container_name: rentflow-postgres
+
+    
     # Removed volumes and command for production
     ports:
       - "5432:5432"
