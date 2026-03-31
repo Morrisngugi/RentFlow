@@ -1,6 +1,7 @@
 # ============= BUILD STAGE =============
 # Build stage - Install dependencies and build Next.js app
-FROM cgr.dev/chainguard/node:latest-dev AS builder
+# Using specific version to bypass cache
+FROM cgr.dev/chainguard/node:20-dev AS builder
 
 ARG CACHE_BUST=1
 ENV CACHE_BUST=${CACHE_BUST}
@@ -12,8 +13,7 @@ COPY package*.json ./
 
 # Install all dependencies (including devDependencies for build)
 USER root
-RUN echo "Build cache invalidation: $(date)" && \
-    npm install --legacy-peer-deps && \
+RUN npm install --legacy-peer-deps && \
     npm cache clean --force
 
 # Copy source code
@@ -23,7 +23,7 @@ COPY . .
 RUN npm run build
 
 # ============= RUNTIME IMAGE =============
-FROM cgr.dev/chainguard/node:latest
+FROM cgr.dev/chainguard/node:20
 
 WORKDIR /app
 
@@ -31,14 +31,14 @@ ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
 
-# Copy built Next.js application (standalone mode)
-COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone ./
+# Copy from standalone build output - all files needed for Next.js runtime
+# The standalone folder contains: server.js, package.json, node_modules structure
+COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone /app/
 COPY --from=builder --chown=nonroot:nonroot /app/.next/static /app/.next/static
 COPY --from=builder --chown=nonroot:nonroot /app/public /app/public
-COPY --from=builder --chown=nonroot:nonroot /app/package.json ./
 
-# Expose port 3000
+# Expose port
 EXPOSE 3000
 
-# Start Next.js server
-CMD ["node", "server.js"]
+# Run the Next.js standalone server
+CMD ["node", "--enable-source-maps", "server.js"]
