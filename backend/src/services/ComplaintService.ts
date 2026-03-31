@@ -100,7 +100,7 @@ class ComplaintServiceImpl {
       const complaints = await this.complaintRepository.find({
         where: { landlordId },
         order: { createdAt: 'DESC' },
-        relations: ['lease', 'tenant', 'landlord'],
+        relations: ['lease', 'lease.property', 'tenant', 'landlord'],
       });
 
       return complaints;
@@ -119,7 +119,7 @@ class ComplaintServiceImpl {
 
       const complaint = await this.complaintRepository.findOne({
         where: { id: complaintId },
-        relations: ['lease', 'tenant', 'landlord', 'attachments'],
+        relations: ['lease', 'lease.property', 'tenant', 'landlord', 'attachments'],
       });
 
       if (!complaint) {

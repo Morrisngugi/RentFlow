@@ -20,7 +20,7 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-gradient-to-b from-rentflow-navy/5 to-white">
       <div className="text-center">
         <div className="mb-8">
-          <img src="/logo.png" alt="RentFlow Logo" className="w-32 h-32 mx-auto" />
+          <img src="/Logo.png" alt="RentFlow Logo" className="w-32 h-32 mx-auto" />
         </div>
         <h1 className="text-5xl font-bold text-rentflow-navy mb-4">
           RentFlow
