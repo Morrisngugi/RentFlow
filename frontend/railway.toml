@@ -2,7 +2,7 @@
 [build]
 builder = "dockerfile"
 dockerfilePath = "Dockerfile"
-watchPaths = ["frontend/**"]
+watchPaths = ["**"]
 
 [deploy]
 restartPolicyMaxRetries = 5
