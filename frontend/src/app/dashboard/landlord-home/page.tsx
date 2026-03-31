@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { ApiClient } from '@/lib/api';
 import DashboardSummary from '@/components/landlord/DashboardSummary';
 import PropertyCard from '@/components/landlord/PropertyCard';
-import LeaseTimeline from '@/components/landlord/LeaseTimeline';
 import AlertsPanel from '@/components/landlord/AlertsPanel';
 
 interface DashboardStats {
@@ -66,7 +65,6 @@ export default function LandlordDashboard() {
   });
   const [properties, setProperties] = useState<Property[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [leaseTimeline, setLeaseTimeline] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewType, setViewType] = useState<'list' | 'grid'>('list');
   const [searchTerm, setSearchTerm] = useState('');
@@ -114,7 +112,6 @@ export default function LandlordDashboard() {
       let totalOccupiedUnits = 0;
       let totalUnits = 0;
 
-      const timelineEvents = new Map();
       const dashboardAlerts: Alert[] = [];
 
       // Process each property
@@ -237,27 +234,6 @@ export default function LandlordDashboard() {
         ).length;
         totalPendingPayments += propertyPendingPayments;
 
-        // Generate timeline events
-        upcomingLeaseExpirations.forEach((lease) => {
-          const date = new Date(lease.endDate);
-          const monthKey = `${date.getMonth()}-${date.getFullYear()}`;
-          if (!timelineEvents.has(monthKey)) {
-            timelineEvents.set(monthKey, {
-              month: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getMonth()],
-              year: date.getFullYear(),
-              leaseCount: 0,
-              leases: [],
-            });
-          }
-          const event = timelineEvents.get(monthKey);
-          event.leaseCount++;
-          event.leases.push({
-            propertyName: property.name,
-            unitName: lease.unit,
-            tenantName: lease.tenantName,
-          });
-        });
-
         // Generate alerts
         if (propertyPendingPayments > 0) {
           dashboardAlerts.push({
@@ -271,29 +247,7 @@ export default function LandlordDashboard() {
           });
         }
 
-        upcomingLeaseExpirations.forEach((lease) => {
-          if (lease.daysUntilExpiry < 30 && lease.daysUntilExpiry > 0) {
-            dashboardAlerts.push({
-              id: `alert-lease-${lease.tenantId}`,
-              type: 'lease_expiring',
-              title: `Lease Expiring Soon - ${property.name}`,
-              description: `${lease.tenantName} (${lease.unit}) lease expires in ${lease.daysUntilExpiry} days`,
-              severity: 'warning',
-              createdAt: new Date().toISOString(),
-              actionUrl: `/dashboard/leases?property=${property.id}`,
-            });
-          } else if (lease.daysUntilExpiry <= 0) {
-            dashboardAlerts.push({
-              id: `alert-lease-expired-${lease.tenantId}`,
-              type: 'lease_expiring',
-              title: `Lease Expired - ${property.name}`,
-              description: `${lease.tenantName} (${lease.unit}) lease expired ${Math.abs(lease.daysUntilExpiry)} days ago`,
-              severity: 'critical',
-              createdAt: new Date().toISOString(),
-              actionUrl: `/dashboard/leases?property=${property.id}`,
-            });
-          }
-        });
+
 
         if (occupiedUnits < unitCount) {
           dashboardAlerts.push({
@@ -316,7 +270,6 @@ export default function LandlordDashboard() {
         pendingPayments: totalPendingPayments,
         occupancyRate: totalUnits > 0 ? Math.round((totalOccupiedUnits / totalUnits) * 100) : 0,
       });
-      setLeaseTimeline(Array.from(timelineEvents.values()));
       setAlerts(dashboardAlerts.slice(0, 10));
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -488,11 +441,6 @@ export default function LandlordDashboard() {
                   👥 Manage Tenants
                 </button>
               </Link>
-              <Link href="/dashboard/leases">
-                <button className="w-full px-4 py-2 bg-purple-600 text-white rounded font-medium hover:bg-purple-700 transition text-left">
-                  📄 View Leases
-                </button>
-              </Link>
               <Link href="/dashboard/payments">
                 <button className="w-full px-4 py-2 bg-orange-600 text-white rounded font-medium hover:bg-orange-700 transition text-left">
                   💰 Collect Payments
@@ -507,11 +455,6 @@ export default function LandlordDashboard() {
           </div>
         </div>
       </div>
-
-      {/* Lease Timeline Section */}
-      {filteredProperties.length > 0 && (
-        <LeaseTimeline events={leaseTimeline} isLoading={loading} />
-      )}
     </div>
   );
 }

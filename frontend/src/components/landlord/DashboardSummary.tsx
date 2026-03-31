@@ -26,14 +26,6 @@ export default function DashboardSummary({ data, isLoading }: DashboardSummaryPr
       subtext: 'properties managed',
     },
     {
-      title: 'Active Leases',
-      value: data.activeLeases,
-      icon: '📄',
-      color: 'from-green-500 to-green-600',
-      href: '/dashboard/leases',
-      subtext: 'active agreements',
-    },
-    {
       title: 'Expected Monthly Rent',
       value: `KES ${(data.expectedMonthlyRent || 0).toLocaleString()}`,
       icon: '💰',
