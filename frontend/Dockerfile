@@ -1,5 +1,5 @@
 # ============= BUILD STAGE =============
-# Force rebuild - clear cache
+# Build stage - Install dependencies and build Next.js app
 FROM cgr.dev/chainguard/node:latest-dev AS builder
 
 WORKDIR /app
