@@ -1,8 +1,6 @@
 # Railway configuration for RentFlow Frontend
 [build]
 builder = "dockerfile"
-dockerfilePath = "Dockerfile"
-watchPaths = ["**"]
 
 [deploy]
 restartPolicyMaxRetries = 5

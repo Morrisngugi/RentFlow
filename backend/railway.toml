@@ -3,8 +3,6 @@
 
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
-watchPaths = ["**"]
 
 [deploy]
 # Use CMD from Dockerfile instead of overriding
