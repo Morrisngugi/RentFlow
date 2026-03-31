@@ -35,4 +35,4 @@ COPY --from=builder --chown=nonroot:nonroot /app/public /app/public
 EXPOSE 3000
 
 # Start Next.js server
-CMD ["/app/server.js"]
+CMD ["node", "/app/server.js"]

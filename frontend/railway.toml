@@ -5,3 +5,4 @@ builder = "dockerfile"
 [deploy]
 restartPolicyMaxRetries = 5
 restartPolicyWindowSeconds = 600
+port = 3000

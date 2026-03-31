@@ -9,3 +9,4 @@ builder = "DOCKERFILE"
 # startCommand = "npm start"
 restartPolicyMaxRetries = 5
 restartPolicyWindowSeconds = 600
+port = 3001
