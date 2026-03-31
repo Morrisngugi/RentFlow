@@ -498,6 +498,11 @@ export default function LandlordDashboard() {
                   💰 Collect Payments
                 </button>
               </Link>
+              <Link href="/dashboard/landlord-complaints">
+                <button className="w-full px-4 py-2 bg-red-600 text-white rounded font-medium hover:bg-red-700 transition text-left">
+                  🔧 View Complaints
+                </button>
+              </Link>
             </div>
           </div>
         </div>
