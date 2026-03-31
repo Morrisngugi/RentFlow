@@ -39,7 +39,7 @@ const encodeUrlParam = (url: string): string => {
 
 // Convert relative logo path to full URL
 export const getLogoUrl = (logoPath: string | null | undefined): string => {
-  if (!logoPath) return '/logo.png';
+  if (!logoPath) return '/Logo.png';
   
   // If it's a Cloudinary URL, convert to JPEG for better browser support and proxy through backend
   if (logoPath.includes('res.cloudinary.com')) {
@@ -367,6 +367,39 @@ export class ApiClient {
         complaints: [],
         pagination: { total: 0, limit, offset, hasMore: false },
       };
+    }
+  }
+
+  // Landlord and property methods
+  async getProperties(): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>('/properties');
+      const properties = response.data?.data || [];
+      return Array.isArray(properties) ? properties : [];
+    } catch (error) {
+      console.error('Failed to fetch properties:', error);
+      return [];
+    }
+  }
+
+  async getPropertyById(propertyId: string): Promise<any> {
+    try {
+      const response = await this.axiosInstance.get<any>(`/properties/${propertyId}`);
+      return response.data?.data || null;
+    } catch (error) {
+      console.error('Failed to fetch property details:', error);
+      return null;
+    }
+  }
+
+  async getPropertyLeases(propertyId: string): Promise<any[]> {
+    try {
+      const response = await this.axiosInstance.get<any>(`/properties/${propertyId}/leases`);
+      const leases = response.data?.data || [];
+      return Array.isArray(leases) ? leases : [];
+    } catch (error) {
+      console.error('Failed to fetch property leases:', error);
+      return [];
     }
   }
 }
