@@ -402,6 +402,19 @@ export class ApiClient {
       return [];
     }
   }
+
+  async getLeaseMonthlyBreakdown(leaseId: string, month: number, year: number): Promise<any> {
+    try {
+      const response = await this.axiosInstance.get<any>(
+        `/leases/${leaseId}/monthly-breakdown`,
+        { params: { month, year } }
+      );
+      return response.data?.data || null;
+    } catch (error) {
+      console.error('Failed to fetch monthly breakdown:', error);
+      return null;
+    }
+  }
 }
 
 // Export singleton instance

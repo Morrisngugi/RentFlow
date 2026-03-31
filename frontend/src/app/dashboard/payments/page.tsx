@@ -93,8 +93,65 @@ export default function PaymentsPage() {
 
         setPayments(allPayments);
       } else if (user.role === 'landlord') {
-        // For landlords, fetch all tenant payments from their properties
-        const allPayments = await apiClient.getLandlordPayments?.() || [];
+        // For landlords, fetch current month invoices from all properties using invoice data
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+
+        const propertiesData = await apiClient.getProperties();
+        const properties = Array.isArray(propertiesData) ? propertiesData : [];
+        
+        const allPayments: Payment[] = [];
+
+        for (const property of properties) {
+          const leases = await apiClient.getPropertyLeases(property.id);
+          const leaseList = Array.isArray(leases) ? leases : [];
+
+          for (const lease of leaseList) {
+            // Fetch current month's invoice for this lease
+            const monthlyBreakdown = await apiClient.getLeaseMonthlyBreakdown(
+              lease.id,
+              currentMonth,
+              currentYear
+            );
+
+            if (monthlyBreakdown) {
+              const amountPaid = parseFloat(String(monthlyBreakdown.amountPaid || 0));
+              const totalDue = parseFloat(String(monthlyBreakdown.totalDue || 0));
+              const dueDate = monthlyBreakdown.dueDate || new Date().toISOString();
+              const isOverdue = new Date(dueDate) < new Date() && amountPaid < totalDue;
+
+              // Determine status: fully paid → pending/overdue/partial based on payment state
+              let status: 'paid' | 'pending' | 'overdue' | 'partial' = 'paid';
+              if (amountPaid >= totalDue) {
+                status = 'paid';
+              } else if (isOverdue) {
+                // If due date has passed and not fully paid, it's overdue
+                status = 'overdue';
+              } else if (amountPaid > 0 && amountPaid < totalDue) {
+                // If partial payment received and not overdue, it's partial
+                status = 'partial';
+              } else {
+                // No payment received and not overdue yet
+                status = 'pending';
+              }
+
+              allPayments.push({
+                id: monthlyBreakdown.id,
+                leaseId: lease.id,
+                property: property.name,
+                tenant: lease.tenant?.firstName?.concat(' ', lease.tenant?.lastName || '') || 'Unknown',
+                amount: totalDue,
+                amountPaid: amountPaid,
+                dueDate: dueDate,
+                paidDate: amountPaid > 0 ? monthlyBreakdown.paidDate || new Date().toISOString() : undefined,
+                paymentMethod: amountPaid > 0 ? 'recorded' : undefined,
+                status: status,
+              });
+            }
+          }
+        }
+
         setPayments(allPayments);
       } else if (user.role === 'agent') {
         // For agents, fetch all payments for properties they manage
