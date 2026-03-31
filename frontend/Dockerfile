@@ -31,7 +31,7 @@ COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone /app
 COPY --from=builder --chown=nonroot:nonroot /app/.next/static /app/.next/static
 COPY --from=builder --chown=nonroot:nonroot /app/public /app/public
 
-# Expose port
+# Expose port 3000
 EXPOSE 3000
 
 # Start Next.js server
