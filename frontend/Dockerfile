@@ -8,7 +8,7 @@ COPY package*.json ./
 
 # Install all dependencies (including devDependencies for build)
 USER root
-RUN npm ci --legacy-peer-deps && \
+RUN npm install --legacy-peer-deps && \
     npm cache clean --force
 
 # Copy source code
