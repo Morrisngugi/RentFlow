@@ -2,8 +2,8 @@
 [build]
 builder = "dockerfile"
 dockerfilePath = "Dockerfile"
+watchPaths = ["frontend/**"]
 
 [deploy]
 restartPolicyMaxRetries = 5
 restartPolicyWindowSeconds = 600
-port = 3000

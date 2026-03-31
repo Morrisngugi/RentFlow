@@ -3,11 +3,11 @@
 
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "./Dockerfile"
+dockerfilePath = "Dockerfile"
+watchPaths = ["backend/**"]
 
 [deploy]
 # Use CMD from Dockerfile instead of overriding
 # startCommand = "npm start"
 restartPolicyMaxRetries = 5
 restartPolicyWindowSeconds = 600
-port = 3001

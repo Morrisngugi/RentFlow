@@ -13,8 +13,7 @@ COPY package*.json ./
 
 # Install all dependencies (including devDependencies for build)
 USER root
-RUN npm install --legacy-peer-deps && \
-    npm cache clean --force
+RUN npm ci --no-audit --ignore-scripts --legacy-peer-deps
 
 # Copy source code
 COPY . .
@@ -23,7 +22,10 @@ COPY . .
 RUN npm run build
 
 # ============= RUNTIME IMAGE =============
-FROM cgr.dev/chainguard/node:20
+FROM gcr.io/distroless/nodejs20-debian12:nonroot
+
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 WORKDIR /app
 
@@ -31,11 +33,13 @@ ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
 
+RUN echo "Building with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
+
 # Copy from standalone build output - all files needed for Next.js runtime
 # The standalone folder contains: server.js, package.json, node_modules structure
-COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone /app/
-COPY --from=builder --chown=nonroot:nonroot /app/.next/static /app/.next/static
-COPY --from=builder --chown=nonroot:nonroot /app/public /app/public
+COPY --from=builder /app/.next/standalone /app/
+COPY --from=builder /app/.next/static /app/.next/static
+COPY --from=builder /app/public /app/public
 
 # Expose port
 EXPOSE 3000
