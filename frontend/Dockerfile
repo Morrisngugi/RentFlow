@@ -18,7 +18,7 @@ COPY . .
 RUN npm run build
 
 # ============= RUNTIME IMAGE =============
-FROM gcr.io/distroless/nodejs20-debian12:nonroot
+FROM cgr.dev/chainguard/node:latest
 
 WORKDIR /app
 
