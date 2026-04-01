@@ -13,7 +13,6 @@ RUN npm ci --no-audit
 # Build backend TypeScript
 COPY tsconfig.json ./
 COPY src ./src
-COPY migrations ./migrations
 RUN npm run build
 
 # ============= PRODUCTION DEPENDENCIES =============
@@ -41,9 +40,6 @@ COPY --from=prod-deps --chown=nonroot:nonroot /app/package*.json ./
 
 # Copy built backend
 COPY --from=builder --chown=nonroot:nonroot /app/dist ./dist/
-
-# Copy migrations directory for database migrations
-COPY --from=builder --chown=nonroot:nonroot /app/migrations ./migrations/
 
 # Copy uploads directory structure
 COPY --from=prod-deps --chown=nonroot:nonroot /app/uploads ./uploads/
