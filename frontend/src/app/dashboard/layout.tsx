@@ -8,9 +8,9 @@ import Link from 'next/link';
 import { apiClient, getLogoUrl, getProfileImageUrl } from '@/lib/api';
 import { User } from '@/lib/types';
 import { getMenuForRole, getDashboardTitleForRole, MenuItem } from '@/lib/navigationConfig';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 
-const NotificationBell = dynamic(() => import('@/components/NotificationBell'), { ssr: false });
+const NotificationBell = dynamicImport(() => import('@/components/NotificationBell'), { ssr: false });
 
 export default function DashboardLayout({
   children,
