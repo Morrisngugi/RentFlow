@@ -1,7 +1,42 @@
 import axios, { AxiosInstance } from 'axios';
 import { User, LoginRequest, LoginResponse, Notification } from './types';
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://rentflow-backend-dev.up.railway.app/api/v1';
+/**
+ * Automatically determine backend URL based on frontend environment
+ * This ensures the frontend always calls the correct backend regardless of 
+ * environment variable configuration
+ */
+const getBackendUrl = (): string => {
+  // Allow environment variable override for special cases
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+
+  // Detect environment from frontend URL (only in browser)
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    
+    // Production frontend → production backend
+    if (hostname === 'rentflowapp.up.railway.app') {
+      return 'https://rentflow-backend.up.railway.app/api/v1';
+    }
+    
+    // Development frontend → development backend
+    if (hostname === 'rentflow-frontend-develop.up.railway.app') {
+      return 'https://rentflow-backend-dev.up.railway.app/api/v1';
+    }
+    
+    // Local development
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:3001/api/v1';
+    }
+  }
+
+  // Default fallback for build time (used by Next.js during static generation)
+  return 'https://rentflow-backend.up.railway.app/api/v1';
+};
+
+export const API_URL = getBackendUrl();
 
 // Create axios instance
 const axiosInstance: AxiosInstance = axios.create({
@@ -27,9 +62,8 @@ axiosInstance.interceptors.request.use((config) => {
 
 // Get base URL for images/uploads (without /api/v1 suffix)
 export const getImageBaseUrl = () => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://rentflow-backend-dev.up.railway.app/api/v1';
   // Remove /api/v1 or /api/v1/ suffix to get the base domain URL
-  return apiUrl.replace(/\/api\/v\d+\/?$/, '');
+  return API_URL.replace(/\/api\/v\d+\/?$/, '');
 };
 
 // Encode URL for use as query parameter

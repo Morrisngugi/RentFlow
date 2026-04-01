@@ -32,13 +32,45 @@ import { AgentTransaction } from '../entities/AgentTransaction';
 
 dotenv.config();
 
+// Parse DATABASE_URL if available (Railway production)
+const getDatabaseConfig = () => {
+  const databaseUrl = process.env.DATABASE_URL;
+  
+  if (databaseUrl) {
+    // Parse connection string: postgresql://user:password@host:port/database
+    try {
+      const url = new URL(databaseUrl);
+      return {
+        host: url.hostname,
+        port: parseInt(url.port || '5432'),
+        username: url.username,
+        password: url.password,
+        database: url.pathname.slice(1), // remove leading /
+      };
+    } catch (error) {
+      console.warn('Failed to parse DATABASE_URL, falling back to individual variables');
+    }
+  }
+  
+  // Fallback: use Railway PGHOST/PGUSER format or traditional DB_ format
+  return {
+    host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
+    username: process.env.PGUSER || process.env.DB_USER || 'postgres',
+    password: process.env.POSTGRES_PASSWORD || process.env.DB_PASSWORD || 'postgres',
+    database: process.env.POSTGRES_DB || process.env.DB_NAME || 'rentflow',
+  };
+};
+
+const dbConfig = getDatabaseConfig();
+
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  username: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  database: process.env.DB_NAME || 'rentflow',
+  host: dbConfig.host,
+  port: dbConfig.port,
+  username: dbConfig.username,
+  password: dbConfig.password,
+  database: dbConfig.database,
   // Use synchronize mode in all environments (RentFlow doesn't use migrations)
   synchronize: true,
   logging: process.env.NODE_ENV === 'development',
@@ -89,7 +121,8 @@ export async function initializeDatabase() {
       
       if (!existingAdmin) {
         const bcrypt = await import('bcryptjs');
-        const passwordHash = await bcrypt.hash('admin123', 10);
+        const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123';
+        const passwordHash = await bcrypt.hash(defaultPassword, 10);
         const admin = userRepo.create({
           email: 'admin@rentflow.com',
           phoneNumber: '0000000000',
@@ -101,7 +134,7 @@ export async function initializeDatabase() {
           isActive: true
         });
         await userRepo.save(admin);
-        console.log('✅ System admin user created: admin@rentflow.com / admin123');
+        console.log('✅ System admin user created: admin@rentflow.com');
       } else {
         console.log('✅ Admin user already exists');
       }
