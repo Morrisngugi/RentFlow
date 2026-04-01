@@ -2,12 +2,18 @@ version: '3.8'
 
 name: rentflow-dev
 
+# This is an example docker-compose file for local development
+# Copy and modify as needed for your local environment
+# Alternatively, create a docker-compose.override.yml for local customizations
+
 services:
   postgres:
     image: postgres:15-alpine3.20
     container_name: rentflow-postgres
     restart: unless-stopped
     environment:
+      # Change these for your local environment
+      # Or set DB_PASSWORD in .env file
       POSTGRES_USER: rentflow_user
       POSTGRES_PASSWORD: ${DB_PASSWORD:-rentflow_password_change_me}
       POSTGRES_DB: rentflow_db
@@ -31,7 +37,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile.dev  # Uses development Dockerfile with hot-reload
     container_name: rentflow-backend
     restart: unless-stopped
     environment:
@@ -45,6 +51,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       # File watcher polling for Docker on Windows/Mac
+      # Set to "false" on Linux for better performance
       WATCHPACK_POLLING: "true"
     ports:
       - "3001:3001"
@@ -52,11 +59,12 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      # Source code sync for hot-reload
+      # Mount source code for live hot-reload
       - ./backend/src:/app/src
       - ./backend/migrations:/app/migrations
       - ./backend/uploads:/app/uploads
-      # Node modules caching for performance
+      # Named volume for node_modules to avoid mounting from host
+      # This improves performance and avoids permission issues
       - backend_node_modules:/app/node_modules
     networks:
       - rentflow-network
@@ -69,8 +77,9 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile.dev  # Uses development Dockerfile with hot-reload
       args:
+        # Backend API URL during build (for development defaults)
         NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
     container_name: rentflow-frontend
     restart: unless-stopped
@@ -79,6 +88,7 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
       PORT: 3000
       # File watcher polling for Docker on Windows/Mac
+      # Set to "false" on Linux for better performance
       CHOKIDAR_USEPOLLING: "true"
       CHOKIDAR_INTERVAL: "1000"
     ports:
@@ -86,12 +96,12 @@ services:
     depends_on:
       - backend
     volumes:
-      # Source code sync for hot-reload
+      # Mount source code for live hot-reload
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
-      # Node modules caching for performance
+      # Named volume for node_modules to avoid mounting from host
       - frontend_node_modules:/app/node_modules
-      # Next.js build cache
+      # Named volume for Next.js build cache
       - frontend_next:/app/.next
     networks:
       - rentflow-network
@@ -103,10 +113,42 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
   backend_node_modules:
+    driver: local
   frontend_node_modules:
+    driver: local
   frontend_next:
+    driver: local
 
 networks:
   rentflow-network:
     driver: bridge
+
+# Usage:
+# 
+# 1. Start all services:
+#    docker-compose up
+#
+# 2. Start in background:
+#    docker-compose up -d
+#
+# 3. View logs:
+#    docker-compose logs -f backend
+#    docker-compose logs -f frontend
+#
+# 4. Stop all services:
+#    docker-compose down
+#
+# 5. Reset database (removes all data):
+#    docker-compose down -v
+#
+# 6. Rebuild images after dependency changes:
+#    docker-compose up --build
+#
+# Notes:
+# - Hot-reload is enabled for both backend and frontend
+# - Changes to source files will automatically trigger rebuilds
+# - Database persists in the postgres_data volume
+# - On Windows/Mac, file polling is enabled for file watchers
+# - Named volumes cache node_modules for faster builds

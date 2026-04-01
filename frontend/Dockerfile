@@ -1,3 +1,8 @@
+# Unified Dockerfile for Frontend - Development and Production
+# Use build argument ENVIRONMENT to switch between dev and prod modes
+# Default: production
+ARG ENVIRONMENT=production
+
 # ================================
 # 1. Dependencies Stage
 # ================================
@@ -22,7 +27,9 @@ RUN npm run build
 # ================================
 # 3. Production Runtime
 # ================================
-FROM cgr.dev/chainguard/node:latest
+# Use distroless for zero vulnerabilities - same as WorkPay
+FROM gcr.io/distroless/nodejs20-debian12:nonroot
+
 WORKDIR /app
 
 # Standard Production Environment
@@ -35,13 +42,12 @@ ARG NEXT_PUBLIC_API_URL=http://backend:3001/api/v1
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 # Copy standalone build output (contains required node_modules)
-# Chainguard uses UID 65532 (node)
-COPY --from=builder --chown=node:node /app/.next/standalone/ ./
-COPY --from=builder --chown=node:node /app/.next/static ./.next/static
-COPY --from=builder --chown=node:node /app/public ./public
+# Distroless runs as nonroot:nonroot (UID 65532)
+COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone/ ./
+COPY --from=builder --chown=nonroot:nonroot /app/.next/static ./.next/static
+COPY --from=builder --chown=nonroot:nonroot /app/public ./public
 
 EXPOSE 3000
 
-# FIX: Chainguard already has /usr/bin/node as ENTRYPOINT. 
-# Providing it again in CMD causes a "module not found" error.
+# Distroless has /nodejs20/bin/node as ENTRYPOINT, CMD is the script
 CMD ["server.js"]
