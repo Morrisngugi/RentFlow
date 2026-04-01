@@ -10,9 +10,13 @@ jobs:
   deploy:
     name: Railway Deployment
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
       - name: Determine environment
         id: env
         run: |
@@ -23,6 +27,7 @@ jobs:
             echo "environment=development" >> $GITHUB_OUTPUT
             echo "emoji=🧪" >> $GITHUB_OUTPUT
           fi
+      
       - name: Deployment notification
         run: |
           echo "${{ steps.env.outputs.emoji }} Deploying to Railway (${{ steps.env.outputs.environment }})"
@@ -30,3 +35,4 @@ jobs:
           echo "📝 Commit: ${{ github.sha }}"
           echo ""
           echo "✨ Railway will automatically deploy this push"
+          echo "📍 Configure Railway to watch this branch for auto-deployment"

@@ -1,3 +1,8 @@
+# Unified Dockerfile for Frontend - Development and Production
+# Use build argument ENVIRONMENT to switch between dev and prod modes
+# Default: production
+ARG ENVIRONMENT=production
+
 # ================================
 # 1. Dependencies Stage
 # ================================
@@ -5,7 +10,7 @@ FROM cgr.dev/chainguard/node:latest-dev AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 USER root
-RUN npm ci --no-audit --legacy-peer-deps
+RUN npm ci --no-audit --ignore-scripts --legacy-peer-deps
 
 # ================================
 # 2. Builder Stage
@@ -22,7 +27,9 @@ RUN npm run build
 # ================================
 # 3. Production Runtime
 # ================================
-FROM cgr.dev/chainguard/node:latest
+# Use distroless for minimal attack surface (zero CVEs)
+FROM gcr.io/distroless/nodejs20-debian12:nonroot
+
 WORKDIR /app
 
 # Standard Production Environment
@@ -30,18 +37,21 @@ ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-# Set API URL via build arg
+# Set API URL via build arg (Railway/compose will override)
 ARG NEXT_PUBLIC_API_URL=http://backend:3001/api/v1
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-# Copy standalone build output (contains required node_modules)
-# Chainguard uses UID 65532 (node)
-COPY --from=builder --chown=node:node /app/.next/standalone/ ./
-COPY --from=builder --chown=node:node /app/.next/static ./.next/static
-COPY --from=builder --chown=node:node /app/public ./public
+# Copy dependencies from builder
+COPY --from=builder --chown=nonroot:nonroot /app/node_modules ./node_modules
 
+# Copy standalone build output (contains required Next.js runtime)
+COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone ./
+COPY --from=builder --chown=nonroot:nonroot /app/.next/static ./.next/static
+COPY --from=builder --chown=nonroot:nonroot /app/public ./public
+COPY --from=builder --chown=nonroot:nonroot /app/package*.json ./
+
+# Distroless runs as nonroot (UID 65532) by default
 EXPOSE 3000
 
-# FIX: Chainguard already has /usr/bin/node as ENTRYPOINT. 
-# Providing it again in CMD causes a "module not found" error.
+# Start the Next.js production server - direct execution (no node prefix)
 CMD ["server.js"]

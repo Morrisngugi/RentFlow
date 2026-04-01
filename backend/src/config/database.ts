@@ -39,8 +39,8 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_NAME || 'rentflow',
-  // Synchronize schema for development (Railway with NODE_ENV=development)
-  synchronize: process.env.NODE_ENV === 'development',
+  // Use synchronize mode in all environments (RentFlow doesn't use migrations)
+  synchronize: true,
   logging: process.env.NODE_ENV === 'development',
   entities: [
     User,
@@ -80,22 +80,7 @@ export async function initializeDatabase() {
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
       console.log('✅ Database initialized successfully');
-      
-      // Run pending migrations if we're on Railway or in production
-      const isRailway = process.env.RAILWAY_ENVIRONMENT_NAME !== undefined;
-      const shouldRunMigrations = process.env.NODE_ENV === 'production' || isRailway;
-      
-      if (shouldRunMigrations) {
-        try {
-          console.log('🔄 Running pending migrations...');
-          const migrations = await AppDataSource.runMigrations();
-          if (migrations.length > 0) {
-            console.log(`✅ Successfully ran ${migrations.length} migration(s)!`);
-          }
-        } catch (migrationError) {
-          console.warn('⚠️  Migration execution warning (may be normal if already migrated):', migrationError);
-        }
-      }
+      console.log('🔄 Schema synchronized via TypeORM (migrations not used)');
       
       // Seed admin user if needed
       console.log('🌱 Seeding initial data...');
