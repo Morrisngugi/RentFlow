@@ -20,6 +20,8 @@ WORKDIR /app
 
 ENV NODE_ENV=development
 
+USER root
+
 COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
