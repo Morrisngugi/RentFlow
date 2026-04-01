@@ -121,7 +121,8 @@ export async function initializeDatabase() {
       
       if (!existingAdmin) {
         const bcrypt = await import('bcryptjs');
-        const passwordHash = await bcrypt.hash('admin123', 10);
+        const defaultPassword = process.env.ADMIN_PASSWORD || 'admin123';
+        const passwordHash = await bcrypt.hash(defaultPassword, 10);
         const admin = userRepo.create({
           email: 'admin@rentflow.com',
           phoneNumber: '0000000000',
@@ -133,7 +134,7 @@ export async function initializeDatabase() {
           isActive: true
         });
         await userRepo.save(admin);
-        console.log('✅ System admin user created: admin@rentflow.com / admin123');
+        console.log('✅ System admin user created: admin@rentflow.com');
       } else {
         console.log('✅ Admin user already exists');
       }
