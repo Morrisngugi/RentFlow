@@ -1,3 +1,7 @@
+version: '3.8'
+
+name: rentflow-dev
+
 services:
   postgres:
     image: postgres:15-alpine3.20
@@ -16,30 +20,24 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
+    networks:
+      - rentflow-network
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    networks:
-      - rentflow-network
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        ENVIRONMENT: production
     container_name: rentflow-backend
     restart: unless-stopped
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
+      NODE_ENV: production
       PORT: 3001
       DB_HOST: postgres
       DB_PORT: 5432
@@ -53,50 +51,38 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '1'
-          memory: 1G
+    networks:
+      - rentflow-network
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    networks:
-      - rentflow-network
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        ENVIRONMENT: production
+        NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
     container_name: rentflow-frontend
     restart: unless-stopped
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:3001/api/v1}
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+      PORT: 3000
     ports:
       - "3000:3000"
     depends_on:
       - backend
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '1'
-          memory: 1G
+    networks:
+      - rentflow-network
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    networks:
-      - rentflow-network
 
 volumes:
   postgres_data:

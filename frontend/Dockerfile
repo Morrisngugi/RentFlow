@@ -1,38 +1,57 @@
-# ============= BUILD STAGE =============
-FROM cgr.dev/chainguard/node:latest-dev AS builder
+# Unified Dockerfile for Frontend - Development and Production
+# Use build argument ENVIRONMENT to switch between dev and prod modes
+# Default: production
+ARG ENVIRONMENT=production
 
+# ================================
+# 1. Dependencies Stage
+# ================================
+FROM cgr.dev/chainguard/node:latest-dev AS deps
 WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install all dependencies (including devDependencies for build)
+COPY package.json package-lock.json* ./
 USER root
-RUN npm ci --legacy-peer-deps && \
-    npm cache clean --force
+RUN npm ci --no-audit --ignore-scripts --legacy-peer-deps
 
-# Copy source code
+# ================================
+# 2. Builder Stage
+# ================================
+FROM cgr.dev/chainguard/node:latest-dev AS builder
+WORKDIR /app
+ENV NODE_ENV=production
+USER root
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Build Next.js application
+ENV SKIP_ENV_VALIDATION=true
 RUN npm run build
 
-# ============= RUNTIME IMAGE =============
+# ================================
+# 3. Production Runtime
+# ================================
+# Use distroless for minimal attack surface (zero CVEs)
 FROM gcr.io/distroless/nodejs20-debian12:nonroot
 
 WORKDIR /app
 
+# Standard Production Environment
 ENV NODE_ENV=production
-ENV HOSTNAME="0.0.0.0"
+ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-# Copy built Next.js application (standalone mode)
-COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone /app
-COPY --from=builder --chown=nonroot:nonroot /app/.next/static /app/.next/static
-COPY --from=builder --chown=nonroot:nonroot /app/public /app/public
+# Set API URL via build arg (Railway/compose will override)
+ARG NEXT_PUBLIC_API_URL=http://backend:3001/api/v1
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-# Expose port
+# Copy dependencies from builder
+COPY --from=builder --chown=nonroot:nonroot /app/node_modules ./node_modules
+
+# Copy standalone build output (contains required Next.js runtime)
+COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone ./
+COPY --from=builder --chown=nonroot:nonroot /app/.next/static ./.next/static
+COPY --from=builder --chown=nonroot:nonroot /app/public ./public
+COPY --from=builder --chown=nonroot:nonroot /app/package*.json ./
+
+# Distroless runs as nonroot (UID 65532) by default
 EXPOSE 3000
 
-# Start Next.js server
-CMD ["/app/server.js"]
+# Start the Next.js production server - direct execution (no node prefix)
+CMD ["server.js"]

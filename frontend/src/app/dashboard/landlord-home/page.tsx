@@ -261,7 +261,7 @@ export default function LandlordDashboard() {
           });
         }
       }
-
+      
       setProperties(processedProperties);
       setStats({
         totalProperties: processedProperties.length,

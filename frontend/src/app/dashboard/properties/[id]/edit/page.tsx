@@ -5,8 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/common/Button';
 import { toast } from 'react-toastify';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+import { API_URL } from '@/lib/api';
 
 interface UpdatePropertyData {
   name: string;

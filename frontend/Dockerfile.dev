@@ -12,7 +12,7 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 COPY --chown=node:node package*.json ./
 
 # Install all dependencies including dev dependencies
-RUN npm install --legacy-peer-deps
+RUN npm ci --no-audit --ignore-scripts --legacy-peer-deps
 
 # Copy configuration files with proper ownership
 COPY --chown=node:node next.config.js ./
@@ -26,12 +26,6 @@ COPY --chown=node:node public ./public
 
 # Create .next directory for build output
 RUN mkdir -p .next
-
-# Expose the port
-EXPOSE 3000
-
-# Start development server with proper npm path
-# CMD ["/usr/bin/npm", "run", "dev"]
 
 # Expose the port
 EXPOSE 3000

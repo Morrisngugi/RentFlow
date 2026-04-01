@@ -6,7 +6,7 @@ import { initializeDatabase } from './config/database';
 // Load environment variables
 dotenv.config();
 
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT || '3001', 10);
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 async function startServer() {
@@ -18,11 +18,11 @@ async function startServer() {
     await initializeDatabase();
     console.log('✅ Database connection successful');
 
-    // Start Express server
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📝 API Documentation: http://localhost:${PORT}/api/v1`);
-      console.log(`💚 Health Check: http://localhost:${PORT}/health`);
+    // Start Express server - bind to 0.0.0.0 for Railway/Docker
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+      console.log(`📝 API Documentation: http://0.0.0.0:${PORT}/api/v1`);
+      console.log(`💚 Health Check: http://0.0.0.0:${PORT}/health`);
       console.log(`\n✨ Ready to accept requests`);
     });
   } catch (error) {

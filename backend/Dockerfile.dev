@@ -1,5 +1,6 @@
 # Backend Development Dockerfile
 # Uses Chainguard image for zero CVEs and minimal attack surface
+
 FROM cgr.dev/chainguard/node:latest-dev
 
 WORKDIR /app
@@ -7,15 +8,16 @@ WORKDIR /app
 # Copy package files with proper ownership
 COPY --chown=node:node package*.json ./
 
-# Install all dependencies including dev dependencies
-RUN npm install --legacy-peer-deps
+# Install all dependencies including dev dependencies using npm ci for reproducibility
+RUN npm ci --legacy-peer-deps
 
 # Copy source files with proper ownership
 COPY --chown=node:node tsconfig.json ./
 COPY --chown=node:node src ./src
+COPY --chown=node:node migrations ./migrations
 
-# Create .env file if needed for development
-# You can override this with .env.local during development
+# Create uploads directory with proper permissions
+RUN mkdir -p uploads/profiles uploads/payslips uploads/logos uploads/exports
 
 # Expose the port
 EXPOSE 3001

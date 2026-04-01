@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { API_URL } from '@/lib/api';
 
 interface Agent {
   id: string;
@@ -52,8 +53,7 @@ export default function DashboardPage() {
   const fetchAgents = async () => {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
-      const endpoint = `${apiUrl}/agents`;
+      const endpoint = `${API_URL}/agents`;
       
       console.log(`🔄 Fetching agents from: ${endpoint}`);
       

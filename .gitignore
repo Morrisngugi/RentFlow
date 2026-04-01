@@ -58,6 +58,17 @@ frontend/.next/
 frontend/out/
 
 # ============================================
+# Docker Compose (contain sensitive credentials)
+# ============================================
+docker-compose.yml
+docker-compose.dev.yml
+docker-compose.railway.yml
+docker-compose.override.yml
+docker-compose.local.yml
+docker-compose.prod.yml
+!docker-compose.dev.example.yml
+
+# ============================================
 # IDE & Editor
 # ============================================
 .vscode/
