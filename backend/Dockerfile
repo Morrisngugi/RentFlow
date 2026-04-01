@@ -7,7 +7,6 @@ WORKDIR /app
 
 # Install backend dependencies
 COPY package*.json ./
-USER root
 RUN npm ci --no-audit
 
 
