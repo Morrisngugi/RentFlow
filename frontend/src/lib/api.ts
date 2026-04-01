@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { User, LoginRequest, LoginResponse, Notification } from './types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://rentflow-backend-dev.up.railway.app/api/v1';
 
 // Create axios instance
 const axiosInstance: AxiosInstance = axios.create({
