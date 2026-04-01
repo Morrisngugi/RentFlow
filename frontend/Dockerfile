@@ -62,18 +62,17 @@ ENV PORT=3000
 ARG NEXT_PUBLIC_API_URL=http://backend:3001/api/v1
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-COPY --from=prod-deps --chown=nonroot:nonroot /app/node_modules ./node_modules/
-COPY --from=prod-deps --chown=nonroot:nonroot /app/package*.json ./
+COPY --from=prod-deps --chown=65532:65532 /app/node_modules ./node_modules/
+COPY --from=prod-deps --chown=65532:65532 /app/package*.json ./
 
 # Copy standalone build output directly to /app
-COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone/ ./
+COPY --from=builder --chown=65532:65532 /app/.next/standalone/ ./
 # Copy static assets into the correct location
-COPY --from=builder --chown=nonroot:nonroot /app/.next/static ./.next/static
-COPY --from=builder --chown=nonroot:nonroot /app/public ./public
+COPY --from=builder --chown=65532:65532 /app/.next/static ./.next/static
+COPY --from=builder --chown=65532:65532 /app/public ./public
 
 EXPOSE 3000
 
-# Set USER before CMD to ensure non-root execution
-USER nonroot
+# Chainguard Node image runs as non-root by default (UID 65532)
 
 CMD ["node", "server.js"]
