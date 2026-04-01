@@ -1,56 +1,53 @@
-# Production Backend Dockerfile for RentFlow
-# Multi-stage optimized build for production deployment
-# Build with: docker build --build-arg ENVIRONMENT=production .
-
-# Accept environment argument
-ARG ENVIRONMENT=production
-
 # ============= BUILD STAGE =============
-FROM cgr.dev/chainguard/node:latest-dev AS builder
+# Backend API Dockerfile for RentFlow
+# Build from backend directory context
 
+FROM cgr.dev/chainguard/node:latest-dev AS builder
 WORKDIR /app
 
-# Copy package files
+# Install backend dependencies
 COPY package*.json ./
+RUN npm ci --no-audit
 
-# Install all dependencies (needed for TypeScript compilation)
-USER root
-RUN npm install --no-audit
 
-# Copy source code and config
+# Build backend TypeScript
 COPY tsconfig.json ./
 COPY src ./src
-
-# Build TypeScript to dist/
+COPY migrations ./migrations
 RUN npm run build
 
-# ============= PRODUCTION DEPENDENCIES STAGE =============
+# ============= PRODUCTION DEPENDENCIES =============
 FROM cgr.dev/chainguard/node:latest-dev AS prod-deps
-
 WORKDIR /app
 
+# Copy dependencies
 COPY package*.json ./
-RUN rm -f package-lock.json npm-shrinkwrap.json
-RUN npm install --omit=dev --no-audit
+RUN npm ci --omit=dev --no-audit
 
+# Create uploads directory structure for runtime
+RUN mkdir -p /app/uploads/profiles /app/uploads/payslips /app/uploads/logos /app/uploads/exports && \
+    chmod -R 777 /app/uploads
 
-# ============= FINAL RUNTIME STAGE =============
-FROM cgr.dev/chainguard/node:latest
+# ============= RUNTIME IMAGE =============
+# Use distroless with Debian for glibc compatibility - zero vulnerabilities
+FROM gcr.io/distroless/nodejs20-debian12:nonroot
 
 ENV NODE_ENV=production
-
 WORKDIR /app
 
-# Copy production dependencies with correct UID/GID
-COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules/
-COPY --from=prod-deps --chown=node:node /app/package*.json ./
+# Copy production dependencies
+COPY --from=prod-deps --chown=nonroot:nonroot /app/node_modules ./node_modules/
+COPY --from=prod-deps --chown=nonroot:nonroot /app/package*.json ./
 
-# Copy built application
-COPY --from=builder --chown=node:node /app/dist ./dist/
+# Copy built backend
+COPY --from=builder --chown=nonroot:nonroot /app/dist ./dist/
 
-# Use Chainguard's node user for security (non-root)
-USER node
+# Copy migrations directory for database migrations
+COPY --from=builder --chown=nonroot:nonroot /app/migrations ./migrations/
+
+# Copy uploads directory structure
+COPY --from=prod-deps --chown=nonroot:nonroot /app/uploads ./uploads/
 
 EXPOSE 3001
 
-CMD ["node", "dist/server.js"]
+CMD ["dist/server.js"]
