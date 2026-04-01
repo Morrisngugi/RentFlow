@@ -1,7 +1,6 @@
-# Unified Dockerfile for Development and Production
-# Use build argument ENVIRONMENT to switch between dev and prod modes
-# Default: production
-ARG ENVIRONMENT=production
+# Production Backend Dockerfile for RentFlow
+# Multi-stage optimized build for production deployment
+# For development, use Dockerfile.dev with hot-reload support
 
 # ============= BUILD STAGE =============
 FROM cgr.dev/chainguard/node:latest-dev AS builder
@@ -31,26 +30,9 @@ COPY package*.json ./
 RUN rm -f package-lock.json npm-shrinkwrap.json
 RUN npm install --omit=dev --no-audit
 
-# ============= DEVELOPMENT RUNTIME =============
-FROM cgr.dev/chainguard/node:latest-dev AS runtime-dev
 
-ENV NODE_ENV=development
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm install --legacy-peer-deps
-
-COPY tsconfig.json ./
-COPY src ./src
-
-EXPOSE 3001
-
-USER root
-CMD ["/usr/bin/npm", "run", "dev"]
-
-# ============= PRODUCTION RUNTIME =============
-FROM cgr.dev/chainguard/node:latest AS runtime-prod
+# ============= FINAL RUNTIME STAGE =============
+FROM cgr.dev/chainguard/node:latest
 
 ENV NODE_ENV=production
 
@@ -69,8 +51,3 @@ USER 65532
 EXPOSE 3001
 
 CMD ["/usr/bin/node", "dist/server.js"]
-
-# ============= FINAL STAGE (CONDITIONAL) =============
-FROM runtime-${ENVIRONMENT}
-
-# This final stage selects either runtime-dev or runtime-prod based on ENVIRONMENT build arg
