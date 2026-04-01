@@ -5,8 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus, X, CreditCard } from 'lucide-react';
 import { toast } from 'react-toastify';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+import { API_URL } from '@/lib/api';
 
 interface TenantProfile {
   id: string;

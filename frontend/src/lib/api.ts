@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { User, LoginRequest, LoginResponse, Notification } from './types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://rentflow-backend-dev.up.railway.app/api/v1';
 
 // Create axios instance
 const axiosInstance: AxiosInstance = axios.create({
@@ -27,7 +27,7 @@ axiosInstance.interceptors.request.use((config) => {
 
 // Get base URL for images/uploads (without /api/v1 suffix)
 export const getImageBaseUrl = () => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://rentflow-backend-dev.up.railway.app/api/v1';
   // Remove /api/v1 or /api/v1/ suffix to get the base domain URL
   return apiUrl.replace(/\/api\/v\d+\/?$/, '');
 };

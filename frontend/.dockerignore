@@ -1,12 +1,36 @@
-node_modules
-npm-debug.log
-.next
-.git
-.gitignore
-README.md
+# Dependencies and build artifacts (created in container)
+node_modules/
+dist/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files (never copy from host)
 .env
 .env.local
 .env.*.local
+.env.production.local
+.env.test.local
+
+# Version control
+.git
+.gitignore
+
+# IDE and OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
-dist
-build
+Thumbs.db
+
+# Misc
+.turbo/
+cache/
+.next/cache/
+.turbo/
+README.md

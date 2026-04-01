@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { ToastProvider } from "./toast-provider";
 import "./globals.css";
 
+// Force dynamic rendering (SSR) for all pages since they use React Context
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "RentFlow - Property Rental Management",
   description: "Comprehensive property rental management system",

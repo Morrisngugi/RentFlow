@@ -1,11 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import axios from 'axios';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+import { API_URL } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +13,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Check if user is already logged in and redirect to dashboard
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      router.push('/dashboard');
+    }
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,21 +119,12 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Footer */}
-        <div className="mt-8 text-center border-t pt-6">
-          <p className="text-gray-600 text-sm">
-            Don't have an account?{' '}
-            <Link href="/register" className="text-blue-600 hover:text-blue-700 font-semibold">
-              Sign up
-            </Link>
+        {/* Authorization Notice */}
+        <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-center">
+          <p className="text-xs text-amber-800 font-semibold">Authorized Users Only</p>
+          <p className="text-xs text-amber-700 mt-2">
+            This system is restricted to authorized personnel. Contact your administrator for access.
           </p>
-        </div>
-
-        {/* Demo Credentials */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-xs text-gray-600 font-semibold">Demo Credentials:</p>
-          <p className="text-xs text-gray-600 mt-1">Email: admin@rentflow.com</p>
-          <p className="text-xs text-gray-600">Password: admin123</p>
         </div>
       </div>
     </div>
