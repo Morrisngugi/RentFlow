@@ -18,7 +18,7 @@ FROM cgr.dev/chainguard/node:latest-dev AS builder
 
 WORKDIR /app
 
-ENV NODE_ENV=development
+ENV NODE_ENV=production
 
 USER root
 
@@ -26,7 +26,7 @@ COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
 
-# Skip static generation errors for development
+# Skip environment validation for build
 ENV SKIP_ENV_VALIDATION=true
 
 RUN npm run build
