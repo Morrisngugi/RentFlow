@@ -27,8 +27,8 @@ RUN npm run build
 # ================================
 # 3. Production Runtime
 # ================================
-# Use distroless for zero vulnerabilities - same as WorkPay
-FROM gcr.io/distroless/nodejs20-debian12:nonroot
+# Use Chainguard for hardened security with proper Node.js support
+FROM cgr.dev/chainguard/node:latest
 
 WORKDIR /app
 
@@ -37,17 +37,21 @@ ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-# Set API URL via build arg
+# Set API URL via build arg (Railway/compose will override)
 ARG NEXT_PUBLIC_API_URL=http://backend:3001/api/v1
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-# Copy standalone build output (contains required node_modules)
-# Distroless runs as nonroot:nonroot (UID 65532)
-COPY --from=builder --chown=nonroot:nonroot /app/.next/standalone/ ./
-COPY --from=builder --chown=nonroot:nonroot /app/.next/static ./.next/static
-COPY --from=builder --chown=nonroot:nonroot /app/public ./public
+# Copy dependencies from builder
+COPY --from=builder /app/node_modules ./node_modules
 
+# Copy standalone build output (contains required Next.js runtime)
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/package*.json ./
+
+# Chainguard runs as nonroot (UID 65532) by default
 EXPOSE 3000
 
-# Distroless has /nodejs20/bin/node as ENTRYPOINT, CMD is the script
-CMD ["server.js"]
+# Start the Next.js production server
+CMD ["node", "server.js"]
