@@ -35,15 +35,18 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-# Copy production dependencies
-COPY --from=prod-deps --chown=nonroot:nonroot /app/node_modules ./node_modules/
-COPY --from=prod-deps --chown=nonroot:nonroot /app/package*.json ./
+# Copy production dependencies with correct UID
+COPY --from=prod-deps --chown=65532:65532 /app/node_modules ./node_modules/
+COPY --from=prod-deps --chown=65532:65532 /app/package*.json ./
 
 # Copy built application
-COPY --from=builder --chown=nonroot:nonroot /app/dist ./dist/
+COPY --from=builder --chown=65532:65532 /app/dist ./dist/
+
+# Use Chainguard's standard non-root user
+USER 65532
 
 # Expose port
 EXPOSE 3001
 
-# Start application
-CMD ["dist/server.js"]
+# Start application with explicit node path
+CMD ["/usr/bin/node", "dist/server.js"]
