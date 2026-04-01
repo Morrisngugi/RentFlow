@@ -1,6 +1,9 @@
 # Production Backend Dockerfile for RentFlow
 # Multi-stage optimized build for production deployment
-# For development, use Dockerfile.dev with hot-reload support
+# Build with: docker build --build-arg ENVIRONMENT=production .
+
+# Accept environment argument
+ARG ENVIRONMENT=production
 
 # ============= BUILD STAGE =============
 FROM cgr.dev/chainguard/node:latest-dev AS builder
@@ -38,16 +41,16 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-# Copy production dependencies with correct UID
-COPY --from=prod-deps --chown=65532:65532 /app/node_modules ./node_modules/
-COPY --from=prod-deps --chown=65532:65532 /app/package*.json ./
+# Copy production dependencies with correct UID/GID
+COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules/
+COPY --from=prod-deps --chown=node:node /app/package*.json ./
 
 # Copy built application
-COPY --from=builder --chown=65532:65532 /app/dist ./dist/
+COPY --from=builder --chown=node:node /app/dist ./dist/
 
-# Use Chainguard's standard non-root user
-USER 65532
+# Use Chainguard's node user for security (non-root)
+USER node
 
 EXPOSE 3001
 
-CMD ["/usr/bin/node", "dist/server.js"]
+CMD ["node", "dist/server.js"]
