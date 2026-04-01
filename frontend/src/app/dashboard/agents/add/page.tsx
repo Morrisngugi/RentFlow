@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { API_URL } from '@/lib/api';
 
 export default function AddAgentPage() {
   const router = useRouter();
@@ -92,10 +93,9 @@ export default function AddAgentPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
       
       // Step 1: Register the user (create User table entry with agent role)
-      const registerResponse = await fetch(`${apiUrl}/auth/register`, {
+      const registerResponse = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,7 +162,7 @@ export default function AddAgentPage() {
       // Step 2: Create the agent profile with office details
       try {
         console.log('📝 Creating agent profile for userId:', userId);
-        const profileResponse = await fetch(`${apiUrl}/agents`, {
+        const profileResponse = await fetch(`${API_URL}/agents`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
