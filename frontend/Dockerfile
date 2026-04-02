@@ -53,6 +53,6 @@ COPY --from=builder /app/package*.json ./
 
 EXPOSE 3000
 
-# Run as root to ensure proper binary access in Chainguard
-USER root
-CMD node server.js
+# Use exec form with explicit entrypoint for Chainguard
+ENTRYPOINT ["/bin/sh", "-c"]
+CMD ["node server.js"]

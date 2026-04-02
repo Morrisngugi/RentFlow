@@ -52,6 +52,6 @@ COPY --from=builder --chown=node:node /app/dist ./dist/
 
 EXPOSE 3001
 
-# Run as root to ensure proper binary access in Chainguard
-USER root
-CMD node dist/server.js
+# Use exec form with explicit entrypoint for Chainguard
+ENTRYPOINT ["/bin/sh", "-c"]
+CMD ["node dist/server.js"]
