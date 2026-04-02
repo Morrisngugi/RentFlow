@@ -2,63 +2,83 @@ import axios, { AxiosInstance } from 'axios';
 import { User, LoginRequest, LoginResponse, Notification } from './types';
 
 /**
- * Automatically determine backend URL based on frontend environment
- * This ensures the frontend always calls the correct backend regardless of 
- * environment variable configuration
+ * Get backend URL - evaluated at runtime for proper environment detection
+ * This is lazy-loaded to ensure window.location is available in browser context
  */
 const getBackendUrl = (): string => {
-  // Allow environment variable override for special cases
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+  // First priority: explicit environment variable (set at Railway runtime)
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl && envUrl !== 'undefined' && envUrl.startsWith('http')) {
+    if (typeof window !== 'undefined') {
+      console.log('[API] Using NEXT_PUBLIC_API_URL from environment');
+    }
+    return envUrl;
   }
 
-  // Detect environment from frontend URL (only in browser)
+  // Second priority: detect from frontend URL in browser context
   if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
+    const { hostname, protocol } = window.location;
     
-    // Production frontend → production backend
-    if (hostname === 'rentflowapp.up.railway.app') {
-      return 'https://rentflow-backend.up.railway.app/api/v1';
-    }
-    
-    // Development frontend → development backend
-    if (hostname === 'rentflow-frontend-develop.up.railway.app') {
-      return 'https://rentflow-backend-dev.up.railway.app/api/v1';
+    // Development: Frontend on Railway dev → Backend on Railway dev
+    if (hostname.includes('railway.app')) {
+      // Extract the service name pattern and derive backend URL
+      if (hostname.includes('frontend-develop')) {
+        console.log('[API] Using development backend (Railway)');
+        return 'https://rentflow-backend-dev.up.railway.app/api/v1';
+      }
+      // Production frontend on Railway → Production backend
+      if (hostname.includes('rentflowapp')) {
+        console.log('[API] Using production backend (Railway)');
+        return 'https://rentflow-backend.up.railway.app/api/v1';
+      }
     }
     
     // Local development
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      console.log('[API] Using local backend');
       return 'http://localhost:3001/api/v1';
     }
   }
 
-  // Default fallback for build time (used by Next.js during static generation)
-  return 'https://rentflow-backend.up.railway.app/api/v1';
+  // Fallback: Development backend (safest default for Railway deployments)
+  return 'https://rentflow-backend-dev.up.railway.app/api/v1';
 };
 
-export const API_URL = getBackendUrl();
+// Lazy getter that computes API_URL at runtime instead of module load time
+export const getApiUrl = (): string => getBackendUrl();
 
-// Create axios instance
-const axiosInstance: AxiosInstance = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  validateStatus: (status) => {
-    // Treat 404 as success instead of error to prevent console logging
-    // This prevents Axios from throwing for 404 responses
-    return status < 500;
-  },
-});
+// For backward compatibility with existing imports
+export const API_URL = getApiUrl();
 
-// Add token to requests if available
-axiosInstance.interceptors.request.use((config) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Create axios instance lazily to ensure URL is evaluated at runtime
+let axiosInstance: AxiosInstance | null = null;
+
+const getAxiosInstance = (): AxiosInstance => {
+  if (!axiosInstance) {
+    const apiUrl = getApiUrl();
+    axiosInstance = axios.create({
+      baseURL: apiUrl,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      validateStatus: (status) => {
+        // Treat 404 as success instead of error to prevent console logging
+        // This prevents Axios from throwing for 404 responses
+        return status < 500;
+      },
+    });
+
+    // Add token to requests if available
+    axiosInstance.interceptors.request.use((config) => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
   }
-  return config;
-});
+  return axiosInstance;
+};
 
 // Get base URL for images/uploads (without /api/v1 suffix)
 export const getImageBaseUrl = () => {
@@ -115,43 +135,41 @@ export const getProfileImageUrl = (imagePath: string | null | undefined): string
 
 // API Client wrapper class
 export class ApiClient {
-  private axiosInstance: AxiosInstance;
-
-  constructor() {
-    this.axiosInstance = axiosInstance;
+  private getAxios(): AxiosInstance {
+    return getAxiosInstance();
   }
 
   setToken(token: string) {
-    this.axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    this.getAxios().defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }
 
   clearToken() {
-    delete this.axiosInstance.defaults.headers.common['Authorization'];
+    delete this.getAxios().defaults.headers.common['Authorization'];
   }
 
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const response = await this.axiosInstance.post<any>('/auth/login', credentials);
+    const response = await this.getAxios().post<any>('/auth/login', credentials);
     return response.data.data;
   }
 
   async getProfile(): Promise<User> {
-    const response = await this.axiosInstance.get<any>('/auth/profile');
+    const response = await this.getAxios().get<any>('/auth/profile');
     return response.data.data;
   }
 
   async logout(): Promise<void> {
-    await this.axiosInstance.post('/auth/logout');
+    await this.getAxios().post('/auth/logout');
     this.clearToken();
   }
 
   async updateProfile(data: Partial<User>): Promise<User> {
-    const response = await this.axiosInstance.put<any>('/auth/profile', data);
+    const response = await this.getAxios().put<any>('/auth/profile', data);
     return response.data.data;
   }
 
   async getNotifications(limit?: number, offset?: number): Promise<Notification[]> {
     try {
-      const response = await this.axiosInstance.get<any>('/notifications', {
+      const response = await this.getAxios().get<any>('/notifications', {
         params: {
           limit: limit || 20,
           offset: offset || 0,
@@ -166,7 +184,7 @@ export class ApiClient {
 
   async markNotificationAsRead(notificationId: string): Promise<void> {
     try {
-      await this.axiosInstance.patch(`/notifications/${notificationId}/read`);
+      await this.getAxios().patch(`/notifications/${notificationId}/read`);
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
       throw error;
@@ -175,7 +193,7 @@ export class ApiClient {
 
   async markAllNotificationsAsRead(): Promise<void> {
     try {
-      await this.axiosInstance.patch('/notifications/mark-all-read');
+      await this.getAxios().patch('/notifications/mark-all-read');
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error);
       throw error;
@@ -184,7 +202,7 @@ export class ApiClient {
 
   async getUnreadNotificationCount(): Promise<number> {
     try {
-      const response = await this.axiosInstance.get<any>('/notifications/unread-count');
+      const response = await this.getAxios().get<any>('/notifications/unread-count');
       return response.data.data.unreadCount || 0;
     } catch (error) {
       console.error('Failed to fetch unread count:', error);
@@ -200,7 +218,7 @@ export class ApiClient {
     complaintType: 'maintenance' | 'billing' | 'safety' | 'noise' | 'other';
   }): Promise<any> {
     try {
-      const response = await this.axiosInstance.post('/complaints', data);
+      const response = await this.getAxios().post('/complaints', data);
       return response.data.data;
     } catch (error) {
       console.error('Failed to create complaint:', error);
@@ -210,7 +228,7 @@ export class ApiClient {
 
   async getMyComplaints(): Promise<any[]> {
     try {
-      const response = await this.axiosInstance.get<any>('/complaints/my-complaints');
+      const response = await this.getAxios().get<any>('/complaints/my-complaints');
       const complaints = response.data?.data?.complaints || response.data?.complaints || [];
       return Array.isArray(complaints) ? complaints : [];
     } catch (error) {
@@ -221,7 +239,7 @@ export class ApiClient {
 
   async getComplaintById(complaintId: string): Promise<any> {
     try {
-      const response = await this.axiosInstance.get(`/complaints/${complaintId}`);
+      const response = await this.getAxios().get(`/complaints/${complaintId}`);
       return response.data.data;
     } catch (error) {
       console.error('Failed to fetch complaint:', error);
@@ -234,7 +252,7 @@ export class ApiClient {
     status: 'open' | 'in_progress' | 'resolved' | 'closed'
   ): Promise<any> {
     try {
-      const response = await this.axiosInstance.patch(`/complaints/${complaintId}/status`, { status });
+      const response = await this.getAxios().patch(`/complaints/${complaintId}/status`, { status });
       return response.data.data;
     } catch (error) {
       console.error('Failed to update complaint status:', error);
@@ -244,7 +262,7 @@ export class ApiClient {
 
   async replyToComplaint(complaintId: string, message: string, attachmentUrls?: string[]): Promise<any> {
     try {
-      const response = await this.axiosInstance.post(`/complaints/${complaintId}/reply`, {
+      const response = await this.getAxios().post(`/complaints/${complaintId}/reply`, {
         message,
         attachmentUrls,
       });
@@ -260,7 +278,7 @@ export class ApiClient {
     status: 'open' | 'in_progress' | 'resolved' | 'closed'
   ): Promise<any> {
     try {
-      const response = await this.axiosInstance.patch(`/complaints/${complaintId}/update-status`, { status });
+      const response = await this.getAxios().patch(`/complaints/${complaintId}/update-status`, { status });
       return response.data.data;
     } catch (error) {
       console.error('Failed to update complaint status:', error);
@@ -270,7 +288,7 @@ export class ApiClient {
 
   async getComplaintReplies(complaintId: string): Promise<any[]> {
     try {
-      const response = await this.axiosInstance.get(`/complaints/${complaintId}/replies`);
+      const response = await this.getAxios().get(`/complaints/${complaintId}/replies`);
       return Array.isArray(response.data?.data) ? response.data.data : [];
     } catch (error) {
       console.error('Failed to fetch complaint replies:', error);
@@ -281,7 +299,7 @@ export class ApiClient {
   // Lease and payment methods
   async getTenantLeases(tenantId: number | string): Promise<any[]> {
     try {
-      const response = await this.axiosInstance.get<any>(`/leases/by-tenant/${tenantId}`);
+      const response = await this.getAxios().get<any>(`/leases/by-tenant/${tenantId}`);
       const leases = response.data?.data || [];
       if (Array.isArray(leases)) {
         return leases;
@@ -297,7 +315,7 @@ export class ApiClient {
 
   async getMonthlyBreakdown(leaseId: string, month: number, year: number): Promise<any> {
     try {
-      const response = await this.axiosInstance.get<any>(
+      const response = await this.getAxios().get<any>(
         `/leases/${leaseId}/monthly-breakdown?month=${month}&year=${year}`
       );
       // Return null for 404 (no data for this month) or return data for 200
@@ -320,7 +338,7 @@ export class ApiClient {
       if (fromDate) params.append('fromDate', fromDate);
       if (toDate) params.append('toDate', toDate);
 
-      const response = await this.axiosInstance.get<any>(
+      const response = await this.getAxios().get<any>(
         `/leases/invoices/by-tenant/${tenantId}?${params}`
       );
       return response.data?.data || { invoices: [], total: 0, limit, offset };
@@ -332,7 +350,7 @@ export class ApiClient {
 
   async getPaymentHistory(leaseId: string): Promise<any[]> {
     try {
-      const response = await this.axiosInstance.get<any>(`/leases/${leaseId}/payment-history`);
+      const response = await this.getAxios().get<any>(`/leases/${leaseId}/payment-history`);
       const history = response.data?.data || [];
       return Array.isArray(history) ? history : [];
     } catch (error) {
@@ -344,7 +362,7 @@ export class ApiClient {
   // Landlord and Agent payment methods
   async getLandlordPayments(): Promise<any[]> {
     try {
-      const response = await this.axiosInstance.get<any>('/payments/landlord-payments');
+      const response = await this.getAxios().get<any>('/payments/landlord-payments');
       const payments = response.data?.data || [];
       return Array.isArray(payments) ? payments : [];
     } catch (error) {
@@ -355,7 +373,7 @@ export class ApiClient {
 
   async getAgentPayments(): Promise<any[]> {
     try {
-      const response = await this.axiosInstance.get<any>('/payments/agent-payments');
+      const response = await this.getAxios().get<any>('/payments/agent-payments');
       const payments = response.data?.data || [];
       return Array.isArray(payments) ? payments : [];
     } catch (error) {
@@ -367,7 +385,7 @@ export class ApiClient {
   // Agent dashboard methods
   async getAgentStats(): Promise<any> {
     try {
-      const response = await this.axiosInstance.get<any>('/agents/me/stats');
+      const response = await this.getAxios().get<any>('/agents/me/stats');
       return response.data?.data || {
         assignedProperties: 0,
         managedTenants: 0,
@@ -387,7 +405,7 @@ export class ApiClient {
 
   async getAgentComplaints(limit: number = 100, offset: number = 0): Promise<any> {
     try {
-      const response = await this.axiosInstance.get<any>(`/agents/me/complaints?limit=${limit}&offset=${offset}`);
+      const response = await this.getAxios().get<any>(`/agents/me/complaints?limit=${limit}&offset=${offset}`);
       return response.data?.data ? {
         complaints: Array.isArray(response.data.data) ? response.data.data : [],
         pagination: response.data.pagination || { total: 0, limit, offset, hasMore: false },
@@ -406,7 +424,7 @@ export class ApiClient {
 
   async getLandlordComplaints(limit: number = 100, offset: number = 0): Promise<any> {
     try {
-      const response = await this.axiosInstance.get<any>(`/complaints/my-complaints`);
+      const response = await this.getAxios().get<any>(`/complaints/my-complaints`);
       const complaints = Array.isArray(response.data?.data?.complaints) ? response.data.data.complaints : [];
       
       // Handle pagination on frontend since backend returns all complaints
@@ -433,7 +451,7 @@ export class ApiClient {
   // Landlord and property methods
   async getProperties(): Promise<any[]> {
     try {
-      const response = await this.axiosInstance.get<any>('/properties');
+      const response = await this.getAxios().get<any>('/properties');
       const properties = response.data?.data || [];
       return Array.isArray(properties) ? properties : [];
     } catch (error) {
@@ -444,7 +462,7 @@ export class ApiClient {
 
   async getPropertyById(propertyId: string): Promise<any> {
     try {
-      const response = await this.axiosInstance.get<any>(`/properties/${propertyId}`);
+      const response = await this.getAxios().get<any>(`/properties/${propertyId}`);
       return response.data?.data || null;
     } catch (error) {
       console.error('Failed to fetch property details:', error);
@@ -454,7 +472,7 @@ export class ApiClient {
 
   async getPropertyLeases(propertyId: string): Promise<any[]> {
     try {
-      const response = await this.axiosInstance.get<any>(`/properties/${propertyId}/leases`);
+      const response = await this.getAxios().get<any>(`/properties/${propertyId}/leases`);
       const leases = response.data?.data || [];
       return Array.isArray(leases) ? leases : [];
     } catch (error) {
@@ -465,7 +483,7 @@ export class ApiClient {
 
   async getLeaseMonthlyBreakdown(leaseId: string, month: number, year: number): Promise<any> {
     try {
-      const response = await this.axiosInstance.get<any>(
+      const response = await this.getAxios().get<any>(
         `/leases/${leaseId}/monthly-breakdown`,
         { params: { month, year } }
       );
@@ -481,3 +499,4 @@ export class ApiClient {
 export const apiClient = new ApiClient();
 
 export default apiClient;
+
