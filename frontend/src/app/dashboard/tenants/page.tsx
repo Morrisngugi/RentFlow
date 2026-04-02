@@ -4,10 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
-
-const getApiUrl = () => {
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-};
+import { getApiUrl } from '@/lib/api';
 
 interface Tenant {
   id: string;

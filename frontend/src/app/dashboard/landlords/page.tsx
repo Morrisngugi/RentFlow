@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Edit2, Trash2, Plus, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { getApiUrl } from '@/lib/api';
 
 interface Landlord {
   id: string;
