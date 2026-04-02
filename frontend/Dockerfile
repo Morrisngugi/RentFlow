@@ -10,6 +10,7 @@ FROM cgr.dev/chainguard/node:latest-dev AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 USER root
+
 RUN npm ci --no-audit --legacy-peer-deps
 
 # ================================

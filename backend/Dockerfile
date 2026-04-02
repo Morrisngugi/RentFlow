@@ -10,6 +10,8 @@ FROM cgr.dev/chainguard/node:latest-dev AS builder
 
 WORKDIR /app
 
+
+
 # Copy package files
 COPY package*.json ./
 
