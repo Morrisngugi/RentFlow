@@ -57,7 +57,7 @@ const getDatabaseConfig = () => {
     host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
     username: process.env.PGUSER || process.env.DB_USER || 'postgres',
-    password: process.env.POSTGRES_PASSWORD || process.env.DB_PASSWORD || '',
+    password: process.env.POSTGRES_PASSWORD || process.env.DB_PASSWORD || 'postgres',
     database: process.env.POSTGRES_DB || process.env.DB_NAME || 'rentflow',
   };
 };
