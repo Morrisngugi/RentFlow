@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Plus, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 
+const getApiUrl = () => {
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+};
+
 interface Tenant {
   id: string;
   firstName: string;
@@ -38,7 +42,7 @@ export default function TenantsPage() {
 
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/tenants`,
+        `${getApiUrl()}/tenants`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -190,3 +194,4 @@ export default function TenantsPage() {
     </div>
   );
 }
+

@@ -40,7 +40,7 @@ export default function LandlordsPage() {
       
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/landlords`,
+        `${getApiUrl()}/landlords`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -74,7 +74,7 @@ export default function LandlordsPage() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/landlords/${id}`,
+        `${getApiUrl()}/landlords/${id}`,
         {
           method: 'DELETE',
           headers: {
@@ -236,3 +236,4 @@ export default function LandlordsPage() {
     </div>
   );
 }
+
