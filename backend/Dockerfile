@@ -1,49 +1,57 @@
-# ============= BUILD STAGE =============
-# Backend API Dockerfile for RentFlow
-# Build from backend directory context
+# Production Backend Dockerfile for RentFlow
+# Multi-stage optimized build for production deployment
+# Build with: docker build --build-arg ENVIRONMENT=production .
 
+# Accept environment argument
+ARG ENVIRONMENT=production
+
+# ============= BUILD STAGE =============
 FROM cgr.dev/chainguard/node:latest-dev AS builder
+
 WORKDIR /app
 
-# Install backend dependencies
+
+
+# Copy package files
 COPY package*.json ./
-RUN npm ci --no-audit
 
+# Install all dependencies (needed for TypeScript compilation)
+USER root
+RUN npm install --no-audit
 
-# Build backend TypeScript
+# Copy source code and config
 COPY tsconfig.json ./
 COPY src ./src
+
+# Build TypeScript to dist/
 RUN npm run build
 
-# ============= PRODUCTION DEPENDENCIES =============
+# ============= PRODUCTION DEPENDENCIES STAGE =============
 FROM cgr.dev/chainguard/node:latest-dev AS prod-deps
+
 WORKDIR /app
 
-# Copy dependencies
 COPY package*.json ./
-RUN npm ci --omit=dev --no-audit
+RUN rm -f package-lock.json npm-shrinkwrap.json
+RUN npm install --omit=dev --no-audit
 
-# Create uploads directory structure for runtime
-RUN mkdir -p /app/uploads/profiles /app/uploads/payslips /app/uploads/logos /app/uploads/exports && \
-    chmod -R 777 /app/uploads
 
-# ============= RUNTIME IMAGE =============
-# Use distroless with Debian for glibc compatibility - zero vulnerabilities
-FROM gcr.io/distroless/nodejs20-debian12:nonroot
+# ============= FINAL RUNTIME STAGE =============
+FROM cgr.dev/chainguard/node:latest
 
 ENV NODE_ENV=production
+
 WORKDIR /app
 
-# Copy production dependencies
-COPY --from=prod-deps --chown=nonroot:nonroot /app/node_modules ./node_modules/
-COPY --from=prod-deps --chown=nonroot:nonroot /app/package*.json ./
+# Copy production dependencies with correct UID/GID
+COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules/
+COPY --from=prod-deps --chown=node:node /app/package*.json ./
 
-# Copy built backend
-COPY --from=builder --chown=nonroot:nonroot /app/dist ./dist/
-
-# Copy uploads directory structure
-COPY --from=prod-deps --chown=nonroot:nonroot /app/uploads ./uploads/
+# Copy built application
+COPY --from=builder --chown=node:node /app/dist ./dist/
 
 EXPOSE 3001
 
-CMD ["dist/server.js"]
+# Use exec form with explicit entrypoint for Chainguard
+ENTRYPOINT ["/bin/sh", "-c"]
+CMD ["node dist/server.js"]
