@@ -100,13 +100,10 @@ router.get('/agent-payments', authenticate, async (req: AuthenticatedRequest, re
     const leaseRepo = AppDataSource.getRepository(Lease);
 
     // Get all leases for properties this agent manages
-    // This assumes there's an agent assignment relationship
     const leases = await leaseRepo
       .createQueryBuilder('lease')
       .leftJoinAndSelect('lease.property', 'property')
-      .leftJoinAndSelect('lease.agent', 'agent')
-      .where('agent.userId = :agentId', { agentId: req.user.userId })
-      .orWhere('property.agentId = :agentId', { agentId: req.user.userId })
+      .where('property.agentId = :agentId', { agentId: req.user.userId })
       .getMany();
 
     const leaseIds = leases.map((lease) => lease.id);

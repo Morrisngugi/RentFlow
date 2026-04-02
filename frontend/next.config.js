@@ -15,6 +15,19 @@ const nextConfig = {
     maxInactiveAge: 60 * 60 * 1000, // 1 hour
     pagesBufferLength: 5,
   },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { getApiUrl } from '@/lib/api';
 
 interface PropertyWithUnits {
   id: string;
@@ -43,7 +44,7 @@ export default function AgentDetailPage() {
     const fetchAgent = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agents/${agentId}?detailed=true`, {
+        const response = await fetch(`${getApiUrl()}/agents/${agentId}?detailed=true`, {
           headers: {
             'Content-Type': 'application/json',
             ...(token && { Authorization: `Bearer ${token}` }),
@@ -78,7 +79,7 @@ export default function AgentDetailPage() {
     setActionLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agents/${agentId}/status`, {
+      const response = await fetch(`${getApiUrl()}/agents/${agentId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -104,7 +105,7 @@ export default function AgentDetailPage() {
   const handleDelete = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agents/${agentId}`, {
+      const response = await fetch(`${getApiUrl()}/agents/${agentId}`, {
         method: 'DELETE',
         headers: {
           ...(token && { Authorization: `Bearer ${token}` }),

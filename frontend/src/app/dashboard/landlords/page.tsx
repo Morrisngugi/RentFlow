@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Edit2, Trash2, Plus, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { getApiUrl } from '@/lib/api';
 
 interface Landlord {
   id: string;
@@ -40,7 +41,7 @@ export default function LandlordsPage() {
       
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/landlords`,
+        `${getApiUrl()}/landlords`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -74,7 +75,7 @@ export default function LandlordsPage() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/landlords/${id}`,
+        `${getApiUrl()}/landlords/${id}`,
         {
           method: 'DELETE',
           headers: {
@@ -236,3 +237,4 @@ export default function LandlordsPage() {
     </div>
   );
 }
+

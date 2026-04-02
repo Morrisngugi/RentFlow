@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { getApiUrl } from '@/lib/api';
 
 interface Agent {
   id: string;
@@ -39,7 +40,7 @@ export default function EditAgentPage() {
     const fetchAgent = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agents/${agentId}`, {
+        const response = await fetch(`${getApiUrl()}/agents/${agentId}`, {
           headers: {
             'Content-Type': 'application/json',
             ...(token && { Authorization: `Bearer ${token}` }),
@@ -133,7 +134,7 @@ export default function EditAgentPage() {
     try {
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agents/${agentId}`, {
+      const response = await fetch(`${getApiUrl()}/agents/${agentId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
