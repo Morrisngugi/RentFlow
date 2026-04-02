@@ -50,9 +50,7 @@ COPY --from=prod-deps --chown=node:node /app/package*.json ./
 # Copy built application
 COPY --from=builder --chown=node:node /app/dist ./dist/
 
-# Use Chainguard's node user for security (non-root)
-USER node
-
 EXPOSE 3001
 
+# Chainguard nodejs image runs as non-root by default (nonroot user)
 CMD ["node", "dist/server.js"]

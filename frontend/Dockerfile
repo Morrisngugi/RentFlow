@@ -51,8 +51,7 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package*.json ./
 
-# Chainguard runs as nonroot (UID 65532) by default
 EXPOSE 3000
 
-# Start the Next.js production server
+# Chainguard nodejs image runs as non-root by default (nonroot user)
 CMD ["node", "server.js"]
