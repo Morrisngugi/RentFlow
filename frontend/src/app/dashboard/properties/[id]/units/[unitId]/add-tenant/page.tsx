@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import { getApiUrl } from '@/lib/api';
 
 interface FormData {
   // Personal Information
@@ -86,7 +87,7 @@ export default function AddTenantPage() {
       try {
         const token = localStorage.getItem('token');
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/properties/${propertyId}`,
+          `${getApiUrl()}/properties/${propertyId}`,
           {
             headers: { 'Authorization': `Bearer ${token}` },
           }
@@ -247,7 +248,7 @@ export default function AddTenantPage() {
       const token = localStorage.getItem('token');
       
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/properties/${propertyId}/units/${unitId}/create-tenant`,
+        `${getApiUrl()}/properties/${propertyId}/units/${unitId}/create-tenant`,
         {
           method: 'POST',
           headers: {
