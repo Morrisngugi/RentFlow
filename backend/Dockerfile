@@ -52,5 +52,6 @@ COPY --from=builder --chown=node:node /app/dist ./dist/
 
 EXPOSE 3001
 
-# Chainguard nodejs image runs as non-root by default (nonroot user)
+# Run as root to ensure proper binary access in Chainguard
+USER root
 CMD ["node", "dist/server.js"]
