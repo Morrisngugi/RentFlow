@@ -54,4 +54,4 @@ EXPOSE 3001
 
 # Run as root to ensure proper binary access in Chainguard
 USER root
-CMD ["node", "dist/server.js"]
+CMD node dist/server.js
