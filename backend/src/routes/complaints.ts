@@ -1,4 +1,5 @@
 import { Router, Response, NextFunction } from 'express';
+import type { ComplaintReply } from '../entities/complaint/ComplaintReply';
 import { authenticate, AuthenticatedRequest } from '../middleware/auth';
 import { complaintService } from '../services/ComplaintService';
 import { notificationService } from '../services/NotificationService';
@@ -56,7 +57,7 @@ router.post('/', authenticate, async (req: AuthenticatedRequest, res: Response, 
 
     // Send notification to agent if property has an agent
     try {
-      const leaseRepo = (await import('../config/database')).AppDataSource.getRepository((await import('../entities/lease/Lease')).Lease);
+      const leaseRepo = (await import('../config/database.js')).AppDataSource.getRepository((await import('../entities/lease/Lease.js')).Lease);
       const lease = await leaseRepo.findOne({
         where: { id: complaint.leaseId },
         relations: ['property'],
@@ -279,9 +280,9 @@ router.post('/:complaintId/reply', authenticate, async (req: AuthenticatedReques
       throw new ValidationError('Message is required', { message });
     }
 
-    const { Complaint } = await import('../entities/complaint/Complaint');
-    const { ComplaintReply } = await import('../entities/complaint/ComplaintReply');
-    const { AppDataSource } = await import('../config/database');
+    const { Complaint } = await import('../entities/complaint/Complaint.js');
+    const { ComplaintReply } = await import('../entities/complaint/ComplaintReply.js');
+    const { AppDataSource } = await import('../config/database.js');
 
     const complaintRepo = AppDataSource.getRepository(Complaint);
     const complaint = await complaintRepo.findOne({
@@ -356,8 +357,8 @@ router.get('/:complaintId/replies', authenticate, async (req: AuthenticatedReque
 
     const { complaintId } = req.params;
 
-    const { ComplaintReply } = await import('../entities/complaint/ComplaintReply');
-    const { AppDataSource } = await import('../config/database');
+    const { ComplaintReply } = await import('../entities/complaint/ComplaintReply.js');
+    const { AppDataSource } = await import('../config/database.js');
 
     const replyRepo = AppDataSource.getRepository(ComplaintReply);
     const replies = await replyRepo.find({
@@ -370,14 +371,14 @@ router.get('/:complaintId/replies', authenticate, async (req: AuthenticatedReque
     return res.status(200).json({
       success: true,
       message: 'Replies retrieved successfully',
-      data: replies.map(r => ({
-        id: r.id,
-        userId: r.userId,
-        userName: `${r.user.firstName} ${r.user.lastName}`,
-        userRole: r.user.role,
-        message: r.message,
-        attachmentUrls: r.attachmentUrls,
-        createdAt: r.createdAt,
+      data: replies.map((reply: ComplaintReply) => ({
+        id: reply.id,
+        userId: reply.userId,
+        userName: `${reply.user.firstName} ${reply.user.lastName}`,
+        userRole: reply.user.role,
+        message: reply.message,
+        attachmentUrls: reply.attachmentUrls,
+        createdAt: reply.createdAt,
       })),
     });
   } catch (error: any) {
@@ -408,8 +409,8 @@ router.patch('/:complaintId/update-status', authenticate, async (req: Authentica
       throw new ValidationError('Valid status is required', { validStatuses, received: status });
     }
 
-    const { Complaint } = await import('../entities/complaint/Complaint');
-    const { AppDataSource } = await import('../config/database');
+    const { Complaint } = await import('../entities/complaint/Complaint.js');
+    const { AppDataSource } = await import('../config/database.js');
 
     const complaintRepo = AppDataSource.getRepository(Complaint);
     const complaint = await complaintRepo.findOne({

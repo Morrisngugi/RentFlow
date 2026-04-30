@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import type { Complaint } from '../entities/complaint/Complaint';
+import type { Lease } from '../entities/lease/Lease';
 import { agentService } from '../services/AgentService';
 import { authenticate, AuthenticatedRequest, checkUserActive } from '../middleware/auth';
 import { CreateAgentProfileRequest } from '../services/AgentService';
@@ -67,10 +69,10 @@ router.get('/me/stats', authenticate, checkUserActive, async (req: Authenticated
     }
 
     const agentId = req.user.userId;
-    const { Property } = await import('../entities/property/Property');
-    const { Lease } = await import('../entities/lease/Lease');
-    const { Complaint } = await import('../entities/complaint/Complaint');
-    const { AppDataSource } = await import('../config/database');
+    const { Property } = await import('../entities/property/Property.js');
+    const { Lease } = await import('../entities/lease/Lease.js');
+    const { Complaint } = await import('../entities/complaint/Complaint.js');
+    const { AppDataSource } = await import('../config/database.js');
 
     // Count properties created by this agent
     const propertyRepo = AppDataSource.getRepository(Property);
@@ -88,7 +90,7 @@ router.get('/me/stats', authenticate, checkUserActive, async (req: Authenticated
     const activeLeases = leases.length;
 
     // Count unique tenants managed by this agent (tenants in leases of agent's properties)
-    const uniqueTenants = new Set(leases.map(l => l.tenantId)).size;
+    const uniqueTenants = new Set(leases.map((lease: Lease) => lease.tenantId)).size;
 
     // Count complaints for properties managed by this agent
     const complaintRepo = AppDataSource.getRepository(Complaint);
@@ -99,7 +101,7 @@ router.get('/me/stats', authenticate, checkUserActive, async (req: Authenticated
       .where('property.agentId = :agentId', { agentId })
       .getMany();
 
-    const openComplaints = complaints.filter(c => c.status === 'open').length;
+    const openComplaints = complaints.filter((complaint: Complaint) => complaint.status === 'open').length;
 
     return res.status(200).json({
       message: 'Agent statistics retrieved successfully',
@@ -141,10 +143,10 @@ router.get('/me/complaints', authenticate, checkUserActive, async (req: Authenti
     const agentId = req.user.userId;
     const limit = parseInt(req.query.limit as string) || 100;
     const offset = parseInt(req.query.offset as string) || 0;
-    const { Complaint } = await import('../entities/complaint/Complaint');
-    const { Notification } = await import('../entities/notification/Notification');
-    const { AppDataSource } = await import('../config/database');
-    const { notificationService } = await import('../services/NotificationService');
+    const { Complaint } = await import('../entities/complaint/Complaint.js');
+    const { Notification } = await import('../entities/notification/Notification.js');
+    const { AppDataSource } = await import('../config/database.js');
+    const { notificationService } = await import('../services/NotificationService.js');
 
     const complaintRepo = AppDataSource.getRepository(Complaint);
     const notificationRepo = AppDataSource.getRepository(Notification);
@@ -188,22 +190,22 @@ router.get('/me/complaints', authenticate, checkUserActive, async (req: Authenti
 
     return res.status(200).json({
       message: 'Agent complaints retrieved successfully',
-      data: complaints.map(c => ({
-        id: c.id,
-        title: c.title,
-        description: c.description,
-        type: c.complaintType,
-        status: c.status,
-        property: (c.lease?.property) ? { id: c.lease.property.id, name: c.lease.property.name } : null,
-        tenant: c.tenant ? { 
-          id: c.tenant.id, 
-          name: `${c.tenant.firstName} ${c.tenant.lastName}`,
-          email: c.tenant.email,
-          phone: c.tenant.phoneNumber
+      data: complaints.map((complaint: Complaint) => ({
+        id: complaint.id,
+        title: complaint.title,
+        description: complaint.description,
+        type: complaint.complaintType,
+        status: complaint.status,
+        property: (complaint.lease?.property) ? { id: complaint.lease.property.id, name: complaint.lease.property.name } : null,
+        tenant: complaint.tenant ? { 
+          id: complaint.tenant.id, 
+          name: `${complaint.tenant.firstName} ${complaint.tenant.lastName}`,
+          email: complaint.tenant.email,
+          phone: complaint.tenant.phoneNumber
         } : null,
-        lease: c.lease ? { id: c.lease.id } : null,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt,
+        lease: complaint.lease ? { id: complaint.lease.id } : null,
+        createdAt: complaint.createdAt,
+        updatedAt: complaint.updatedAt,
       })),
       pagination: {
         total,
@@ -440,10 +442,10 @@ router.post('/me/sync-notifications', authenticate, checkUserActive, async (req:
     }
 
     const agentId = req.user.userId;
-    const { Complaint } = await import('../entities/complaint/Complaint');
-    const { Notification } = await import('../entities/notification/Notification');
-    const { AppDataSource } = await import('../config/database');
-    const { notificationService } = await import('../services/NotificationService');
+    const { Complaint } = await import('../entities/complaint/Complaint.js');
+    const { Notification } = await import('../entities/notification/Notification.js');
+    const { AppDataSource } = await import('../config/database.js');
+    const { notificationService } = await import('../services/NotificationService.js');
 
     const complaintRepo = AppDataSource.getRepository(Complaint);
     const notificationRepo = AppDataSource.getRepository(Notification);
