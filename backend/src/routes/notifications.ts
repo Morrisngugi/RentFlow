@@ -57,6 +57,100 @@ router.get('/', authenticate, checkUserActive, async (req: AuthenticatedRequest,
 });
 
 /**
+ * POST /api/v1/notifications/push-token
+ * Register device push token for the authenticated user
+ */
+router.post('/push-token', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        error: {
+          status: 401,
+          message: 'Unauthorized',
+          code: 'UNAUTHORIZED',
+        },
+      });
+    }
+
+    const token = String(req.body?.token || '').trim();
+    const platform = String(req.body?.platform || 'android').trim();
+
+    if (!token) {
+      return res.status(400).json({
+        error: {
+          status: 400,
+          message: 'token is required',
+          code: 'VALIDATION_ERROR',
+        },
+      });
+    }
+
+    await notificationService.registerDeviceToken({
+      userId: req.user.userId,
+      token,
+      platform,
+    });
+
+    return res.status(200).json({
+      message: 'Push token registered successfully',
+    });
+  } catch (error: any) {
+    console.error('❌ [POST /notifications/push-token] Error:', error.message);
+    return res.status(500).json({
+      error: {
+        status: 500,
+        message: error.message,
+        code: 'PUSH_TOKEN_REGISTER_ERROR',
+      },
+    });
+  }
+});
+
+/**
+ * DELETE /api/v1/notifications/push-token
+ * Unregister device push token for the authenticated user
+ */
+router.delete('/push-token', authenticate, checkUserActive, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        error: {
+          status: 401,
+          message: 'Unauthorized',
+          code: 'UNAUTHORIZED',
+        },
+      });
+    }
+
+    const token = String(req.body?.token || '').trim();
+    if (!token) {
+      return res.status(400).json({
+        error: {
+          status: 400,
+          message: 'token is required',
+          code: 'VALIDATION_ERROR',
+        },
+      });
+    }
+
+    await notificationService.unregisterDeviceToken(req.user.userId, token);
+
+    return res.status(200).json({
+      message: 'Push token unregistered successfully',
+    });
+  } catch (error: any) {
+    console.error('❌ [DELETE /notifications/push-token] Error:', error.message);
+    return res.status(500).json({
+      error: {
+        status: 500,
+        message: error.message,
+        code: 'PUSH_TOKEN_UNREGISTER_ERROR',
+      },
+    });
+  }
+});
+
+/**
  * GET /api/v1/notifications/unread-count
  * Get unread notification count for the authenticated user
  */

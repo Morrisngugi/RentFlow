@@ -159,6 +159,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun registerPushToken(token: String) {
+        if (token.isBlank() || !_uiState.value.isAuthenticated) {
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching { repository.registerPushToken(token) }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(error = error.message ?: "Failed to register push token")
+                    }
+                }
+        }
+    }
+
     fun markNotificationRead(notificationId: String) {
         viewModelScope.launch {
             runCatching { repository.markNotificationRead(notificationId) }

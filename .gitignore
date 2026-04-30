@@ -46,7 +46,9 @@ backend/logs/
 
 # Android specific
 android/.gradle/
+android/.local-tools/
 android/local.properties
+android/keystore.properties
 android/.idea/
 android/build/
 android/.cxx/

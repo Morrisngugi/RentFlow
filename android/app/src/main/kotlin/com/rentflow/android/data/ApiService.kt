@@ -11,6 +11,7 @@ import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.HTTP
 
 private const val BASE_URL = "https://rentflow-backend-dev.up.railway.app/api/v1/"
 
@@ -29,6 +30,12 @@ interface RentFlowApiService {
 
     @PATCH("notifications/{id}/read")
     suspend fun markNotificationRead(@Path("id") notificationId: String): ApiEnvelope<AppNotification>
+
+    @POST("notifications/push-token")
+    suspend fun registerPushToken(@Body request: PushTokenRequest): ApiEnvelope<Any>
+
+    @HTTP(method = "DELETE", path = "notifications/push-token", hasBody = true)
+    suspend fun unregisterPushToken(@Body request: PushTokenRequest): ApiEnvelope<Any>
 
     @GET("leases/invoices/by-tenant/{tenantId}")
     suspend fun getTenantInvoices(

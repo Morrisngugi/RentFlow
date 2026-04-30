@@ -28,6 +28,7 @@ import { ComplaintAttachment } from '../entities/complaint/ComplaintAttachment';
 import { ComplaintReply } from '../entities/complaint/ComplaintReply';
 import { Notification } from '../entities/notification/Notification';
 import { NotificationPreference } from '../entities/notification/NotificationPreference';
+import { NotificationDevice } from '../entities/notification/NotificationDevice';
 import { AgentTransaction } from '../entities/AgentTransaction';
 
 dotenv.config();
@@ -100,6 +101,7 @@ export const AppDataSource = new DataSource({
     ComplaintReply,
     Notification,
     NotificationPreference,
+    NotificationDevice,
     AgentTransaction,
   ],
   migrations: [path.join(__dirname, '../migrations/**/*.{ts,js}')],

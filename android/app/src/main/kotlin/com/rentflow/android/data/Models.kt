@@ -95,6 +95,11 @@ data class CreateComplaintRequest(
     val attachmentUrls: List<String> = emptyList(),
 )
 
+data class PushTokenRequest(
+    val token: String,
+    val platform: String = "android",
+)
+
 data class LandlordReportData(
     val month: Int,
     val year: Int,

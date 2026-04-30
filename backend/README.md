@@ -81,6 +81,13 @@ src/
 
 See `.env.example` for all available configurations.
 
+### Push Notifications (FCM)
+
+- `FCM_ENABLED` - Optional. Set to `false` to disable push dispatch.
+- `FCM_SERVICE_ACCOUNT_JSON` - Firebase service account JSON (raw JSON or base64 encoded).
+
+When configured, every in-app notification is also pushed to registered Android devices.
+
 ### Required (Production)
 - `JWT_SECRET` - Secret key for JWT signing
 

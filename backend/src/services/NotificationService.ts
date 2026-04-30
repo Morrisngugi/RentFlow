@@ -1,7 +1,9 @@
 import { Notification } from '../entities/notification/Notification';
 import { NotificationPreference } from '../entities/notification/NotificationPreference';
+import { NotificationDevice } from '../entities/notification/NotificationDevice';
 import { AppDataSource } from '../config/database';
 import { DeepPartial } from 'typeorm';
+import { pushToTokens } from '../utils/push';
 
 export interface SendNotificationParams {
   userId: string;
@@ -25,9 +27,16 @@ export interface NotificationResponse {
   createdAt: Date;
 }
 
+export interface RegisterDeviceTokenParams {
+  userId: string;
+  token: string;
+  platform?: string;
+}
+
 export class NotificationService {
   private notificationRepository = AppDataSource.getRepository(Notification);
   private preferenceRepository = AppDataSource.getRepository(NotificationPreference);
+  private deviceRepository = AppDataSource.getRepository(NotificationDevice);
 
   /**
    * Send a notification to a user
@@ -48,6 +57,10 @@ export class NotificationService {
     const savedNotificationResult = await this.notificationRepository.save(notification);
     const savedNotification = Array.isArray(savedNotificationResult) ? savedNotificationResult[0] : savedNotificationResult;
 
+    await this.sendPushToUser(params.userId, savedNotification).catch((error: any) => {
+      console.warn('⚠️ Failed to send push notification:', error?.message || error);
+    });
+
     return {
       id: savedNotification.id,
       userId: savedNotification.userId,
@@ -59,6 +72,52 @@ export class NotificationService {
       isRead: savedNotification.isRead,
       createdAt: savedNotification.createdAt,
     };
+  }
+
+  async registerDeviceToken(params: RegisterDeviceTokenParams): Promise<void> {
+    const token = params.token.trim();
+    if (!token) {
+      return;
+    }
+
+    let device = await this.deviceRepository.findOne({
+      where: {
+        userId: params.userId,
+        token,
+      },
+    });
+
+    if (!device) {
+      device = this.deviceRepository.create({
+        userId: params.userId,
+        token,
+        platform: params.platform || 'android',
+        isActive: true,
+        lastSeenAt: new Date(),
+      });
+    } else {
+      device.isActive = true;
+      device.lastSeenAt = new Date();
+      device.platform = params.platform || device.platform;
+    }
+
+    await this.deviceRepository.save(device);
+  }
+
+  async unregisterDeviceToken(userId: string, token: string): Promise<void> {
+    if (!token.trim()) {
+      return;
+    }
+
+    await this.deviceRepository.update(
+      {
+        userId,
+        token: token.trim(),
+      },
+      {
+        isActive: false,
+      }
+    );
   }
 
   /**
@@ -267,6 +326,41 @@ export class NotificationService {
     await this.preferenceRepository.save(preference);
 
     return preference;
+  }
+
+  private async sendPushToUser(userId: string, notification: Notification): Promise<void> {
+    const devices = await this.deviceRepository.find({
+      where: {
+        userId,
+        isActive: true,
+      },
+    });
+
+    const tokens = devices.map((d) => d.token).filter(Boolean);
+    if (tokens.length === 0) {
+      return;
+    }
+
+    const { invalidTokens } = await pushToTokens(tokens, {
+      title: notification.title,
+      body: notification.message,
+      data: {
+        notificationId: notification.id,
+        notificationType: notification.notificationType,
+        relatedEntityId: notification.relatedEntityId || '',
+        relatedEntityType: notification.relatedEntityType || '',
+      },
+    });
+
+    if (invalidTokens.length > 0) {
+      await this.deviceRepository
+        .createQueryBuilder()
+        .update(NotificationDevice)
+        .set({ isActive: false })
+        .where('userId = :userId', { userId })
+        .andWhere('token IN (:...invalidTokens)', { invalidTokens })
+        .execute();
+    }
   }
 }
 

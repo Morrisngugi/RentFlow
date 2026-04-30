@@ -28,6 +28,14 @@ class RentFlowRepository(
         api.markNotificationRead(notificationId)
     }
 
+    suspend fun registerPushToken(token: String) {
+        api.registerPushToken(PushTokenRequest(token = token))
+    }
+
+    suspend fun unregisterPushToken(token: String) {
+        api.unregisterPushToken(PushTokenRequest(token = token))
+    }
+
     suspend fun getTenantInvoices(tenantId: String): TenantInvoicesData {
         val response = api.getTenantInvoices(tenantId = tenantId)
         return requireNotNull(response.data) {
