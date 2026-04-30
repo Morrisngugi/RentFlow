@@ -18,7 +18,8 @@
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true,
     "incremental": true,
-    "baseUrl": ".",
+    "noUncheckedSideEffectImports": false,
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@/*": [
         "./src/*"
