@@ -1,0 +1,25 @@
+# Local Gradle tools and cache
+.local-tools/
+*.zip
+
+# Build outputs
+build/
+app/build/
+
+# Keystore files
+keystore.properties
+*.jks
+*.keystore
+
+# Google services (contains secrets)
+app/google-services.json
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.gradle/
+local.properties
+
+# OS
+.DS_Store
+Thumbs.db
