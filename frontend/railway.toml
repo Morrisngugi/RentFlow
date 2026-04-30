@@ -2,7 +2,7 @@
 [build]
 builder = "dockerfile"
 dockerfilePath = "Dockerfile"
-watchPaths = ["src/**", "public/**", "package.json", "package-lock.json", "next.config.js", "next-env.d.ts", "postcss.config.mjs", "tailwind.config.ts", "tsconfig.json", "start.sh", "Dockerfile", "railway.toml"]
+watchPaths = ["/frontend/**"]
 
 [deploy]
 restartPolicyMaxRetries = 5
