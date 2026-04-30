@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.RentFlow" parent="Theme.AppCompat.DayNight.NoActionBar" />
+</resources>
