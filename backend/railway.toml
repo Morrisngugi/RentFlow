@@ -4,7 +4,7 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
-watchPaths = ["backend/**"]
+watchPaths = ["src/**", "package.json", "package-lock.json", "tsconfig.json", "Dockerfile", "railway.toml"]
 
 [deploy]
 # Use CMD from Dockerfile instead of overriding
